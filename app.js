@@ -844,8 +844,30 @@ function addSegmentRow(seg = { text: "", type: "static" }) {
     // Type Select
     const typeSel = document.createElement('select');
     typeSel.className = 'segment-type-select';
-    typeSel.innerHTML = `<option value="static">文</option><option value="interactive">訂正箇所</option>`;
+    typeSel.innerHTML = `<option value="static">ただの文</option><option value="interactive">訂正する場所（ボタン）</option>`;
     typeSel.value = seg.type;
+
+    // Text Input
+    const textIn = document.createElement('input');
+    textIn.type = "text";
+    textIn.className = "text-input";
+    textIn.value = seg.text;
+    textIn.style.width = "100%";
+
+    // Helper to update placeholder based on type
+    const updatePlaceholder = () => {
+        if (typeSel.value === 'static') {
+            textIn.placeholder = "表示する文章（例：私の好きな果物は）";
+            textIn.style.borderColor = "#ccc";
+            textIn.style.backgroundColor = "#fff";
+        } else {
+            textIn.placeholder = "画面に表示される【誤り】（例：リンゴ）";
+            textIn.style.borderColor = "#3b82f6";
+            textIn.style.backgroundColor = "#eff6ff";
+        }
+    };
+    updatePlaceholder();
+
     typeSel.onchange = () => {
         seg.type = typeSel.value;
         const currentSegs = getSegmentsFromEditor();
@@ -854,15 +876,6 @@ function addSegmentRow(seg = { text: "", type: "static" }) {
         currentSegs[idx].type = typeSel.value;
         renderSegmentEditor(currentSegs);
     };
-
-    // Text Input
-    const textIn = document.createElement('input');
-    textIn.type = "text";
-    textIn.className = "text-input";
-    textIn.value = seg.text;
-    textIn.value = seg.text;
-    textIn.placeholder = "問題文に表示する言葉（誤りを含む）";
-    textIn.style.width = "100%";
 
     // Delete Button
     const delBtn = document.createElement('button');
@@ -881,11 +894,11 @@ function addSegmentRow(seg = { text: "", type: "static" }) {
         details.className = "segment-detail";
 
         // Correct Answer
-        details.innerHTML += `<label style="font-size:0.75rem;">正しい言葉（正解）:</label>`;
+        details.innerHTML += `<label style="font-size:0.75rem; color:#15803d; font-weight:bold;">直した後の【正しい】言葉 (正解):</label>`;
         const correctIn = document.createElement('input');
         correctIn.className = "correct-input";
         correctIn.value = seg.correctAnswer || seg.text;
-        correctIn.placeholder = "ここを直した後の正しい言葉";
+        correctIn.placeholder = "本来あるべき言葉（例：ミカン）";
         details.appendChild(correctIn);
 
         // Options - Split into 3 inputs as requested
@@ -899,7 +912,7 @@ function addSegmentRow(seg = { text: "", type: "static" }) {
         // Logic: specific value != correct value.
         const distractors = allOpts.filter(o => o !== currentCorrect);
 
-        details.innerHTML += `<label style="font-size:0.75rem;">選択肢 (ダミーの誤答):</label>`;
+        details.innerHTML += `<label style="font-size:0.75rem;">その他の選択肢 (ダミー):</label>`;
 
         // Ensure at least 3 inputs
         for (let i = 0; i < 3; i++) {
