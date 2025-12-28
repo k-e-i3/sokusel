@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SokuSelect - 測量士 記述式攻略</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts for premium feel -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&family=Noto+Sans+JP:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+
+<body>
+    <!-- Start Screen Overlay -->
+    <div id="start-screen" class="overlay active" style="background: rgba(15, 23, 42, 0.95);">
+        <div class="start-screen-content">
+            <h1 class="start-title">SokuSelect<br><span style="font-size: 0.5em; font-weight: 500; opacity: 0.8;">測量士
+                    文章訂正ドリル V3</span>
+            </h1>
+
+            <div class="setting-section">
+                <label class="setting-label">ジャンルを選択</label>
+                <div class="genre-grid" id="genre-options">
+                    <div class="genre-card selected" data-value="all">すべて</div>
+                    <div class="genre-card" data-value="法規等">法規等</div>
+                    <div class="genre-card" data-value="基準点測量">基準点測量</div>
+                    <div class="genre-card" data-value="地図・GIS">地図・GIS</div>
+                    <div class="genre-card" data-value="応用測量">応用測量</div>
+                </div>
+            </div>
+
+            <div class="setting-section">
+                <label class="setting-label">問題数</label>
+                <div class="count-options" id="count-options">
+                    <div class="count-btn" data-value="5">5問</div>
+                    <div class="count-btn selected" data-value="10">10問</div>
+                    <div class="count-btn" data-value="20">20問</div>
+                </div>
+            </div>
+
+            <button id="start-btn" class="btn btn-primary"
+                style="width: 100%; padding: 1rem; font-size: 1.2rem;">試験を開始する</button>
+        </div>
+    </div>
+
+    <!-- Modal Overlay (for dropdowns) -->
+    <div class="overlay" id="overlay"></div>
+
+    <div class="container">
+        <header>
+            <div class="brand">
+                <span class="brand-sub">測量士 国家試験対策</span>
+                <h1>SokuSelect <span class="version">v3.0</span></h1>
+            </div>
+            <div id="game-area" style="display: none;">
+                <div class="progress-bar" id="progress">Q1 / 10</div>
+                <div class="question-box">
+                    <p id="instruction-text" class="instruction">誤っている箇所を訂正しなさい。</p>
+                    <div id="sentence-area" class="sentence">
+                        <!-- Segments go here -->
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button id="check-btn" class="primary-btn">判定</button>
+                    <button id="next-btn" class="primary-btn hidden">次へ</button>
+                </div>
+
+                <div id="feedback" class="feedback-box hidden">
+                    <div class="feedback-header">
+                        <h2 id="feedback-title">正解！</h2>
+                        <div class="char-bubble">
+                            <span id="char-msg">流石です！</span>
+                        </div>
+                    </div>
+                    <p id="feedback-desc"></p>
+                </div>
+            </div>
+        </header>
+
+        <main id="game-area">
+            <div class="question-container">
+                <div class="instruction" id="instruction-text">誤っている箇所を訂正しなさい</div>
+                <div id="sentence-area" class="sentence-display">
+                    <!-- Dynamic Sentence with Interactive Spans -->
+                </div>
+            </div>
+
+            <!-- Positioned dynamically -->
+            <div id="selection-modal" class="selection-modal hidden">
+                <!-- Options injected here -->
+            </div>
+
+            <div id="feedback" class="feedback-box">
+                <div class="feedback-layout">
+                    <div class="char-avatar-container">
+                        <!-- Simple Character Avatar (CSS or SVG) -->
+                        <div
+                            style="width:100%; height:100%; background:#dbeafe; display:flex; align-items:center; justify-content:center; font-size:2rem;">
+                            👩‍💼</div>
+                    </div>
+                    <div class="feedback-content">
+                        <div id="char-msg" class="char-bubble"></div>
+                        <h3 id="feedback-title" class="feedback-title">判定結果</h3>
+                        <p id="feedback-desc" class="feedback-text">解説...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="controls-area">
+                <button id="check-btn" class="btn btn-primary">決定</button>
+                <button id="next-btn" class="btn btn-next hidden">次へ進む</button>
+            </div>
+        </main>
+
+        <section id="result-area" class="hidden" style="text-align: center;">
+            <h2 style="font-size: 2rem; color: var(--primary-color); margin-bottom: 0.5rem;" id="final-verdict">試験終了
+            </h2>
+            <div id="result-msg" style="margin-bottom: 2rem; font-weight: bold; color: #64748b;">お疲れ様でした！</div>
+
+            <div class="score-value" id="final-score">0 / 0</div>
+
+            <div class="chart-container" id="analytics-chart">
+                <!-- Charts injected here -->
+            </div>
+
+            <button onclick="location.reload()" class="btn btn-primary">設定を変えてやり直す</button>
+        </section>
+    </div>
+
+    <script src="questions.js"></script>
+    <script src="app.js"></script>
+</body>
+
+</html>
