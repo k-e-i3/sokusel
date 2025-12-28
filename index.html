@@ -24,6 +24,15 @@
                     文章訂正ドリル V3</span>
             </h1>
 
+            <div style="display:flex; justify-content:center; gap:15px; margin-bottom:20px;">
+                <button id="auth-btn-start" class="icon-btn" title="Google認証"
+                    style="background:white; border-radius:50%; width:40px; height:40px; font-size:1.2rem;">G</button>
+                <button id="params-btn-start" class="icon-btn" title="統計"
+                    style="background:white; border-radius:50%; width:40px; height:40px; font-size:1.2rem;">📊</button>
+                <button id="editor-btn-start" class="icon-btn" title="問題編集"
+                    style="background:white; border-radius:50%; width:40px; height:40px; font-size:1.2rem;">📝</button>
+            </div>
+
             <div class="setting-section">
                 <label class="setting-label">ジャンルを選択</label>
                 <div class="genre-grid" id="genre-options">
@@ -58,30 +67,7 @@
                 <span class="brand-sub">測量士 国家試験対策</span>
                 <h1>SokuSelect <span class="version">v3.0</span></h1>
             </div>
-            <div id="game-area" style="display: none;">
-                <div class="progress-bar" id="progress">Q1 / 10</div>
-                <div class="question-box">
-                    <p id="instruction-text" class="instruction">誤っている箇所を訂正しなさい。</p>
-                    <div id="sentence-area" class="sentence">
-                        <!-- Segments go here -->
-                    </div>
-                </div>
-
-                <div class="controls">
-                    <button id="check-btn" class="primary-btn">判定</button>
-                    <button id="next-btn" class="primary-btn hidden">次へ</button>
-                </div>
-
-                <div id="feedback" class="feedback-box hidden">
-                    <div class="feedback-header">
-                        <h2 id="feedback-title">正解！</h2>
-                        <div class="char-bubble">
-                            <span id="char-msg">流石です！</span>
-                        </div>
-                    </div>
-                    <p id="feedback-desc"></p>
-                </div>
-            </div>
+            <div id="game-area-placeholder" style="display:none;"></div>
         </header>
 
         <main id="game-area">
@@ -119,6 +105,87 @@
             </div>
         </main>
 
+        <!-- Editor Screen -->
+        <div id="editor-screen" class="screen hidden">
+            <header class="app-header">
+                <h2>問題編集</h2>
+                <button id="editor-close-btn" class="icon-btn">✖</button>
+            </header>
+            <div class="editor-content">
+                <div class="editor-controls">
+                    <button id="add-question-btn" class="secondary-btn">+ 新規作成</button>
+                    <button id="save-drive-btn" class="primary-btn">Driveに保存</button>
+                </div>
+                <div id="question-list" class="question-list">
+                    <!-- List of questions -->
+                </div>
+                <div id="editor-form" class="editor-form hidden">
+                    <h3>編集</h3>
+                    <div class="form-group">
+                        <label>ID</label>
+                        <input type="text" id="edit-id">
+                    </div>
+                    <div class="form-group">
+                        <label>ジャンル</label>
+                        <input type="text" id="edit-genre" list="genre-list">
+                        <datalist id="genre-list">
+                            <option value="測量法">
+                            <option value="多角測量">
+                            <option value="基準点測量">
+                            <option value="水準測量">
+                            <option value="地形測量">
+                            <option value="写真測量">
+                            <option value="地図編集">
+                            <option value="応用測量">
+                        </datalist>
+                    </div>
+                    <div class="form-group">
+                        <label>問題文 (JSON)</label>
+                        <textarea id="edit-segments" rows="5"></textarea>
+                        <small>※ 現在はJSON形式で直接編集します</small>
+                    </div>
+                    <div class="form-group">
+                        <label>解説</label>
+                        <textarea id="edit-explanation" rows="3"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button id="edit-save-btn" class="primary-btn">決定</button>
+                        <button id="edit-cancel-btn" class="secondary-btn">キャンセル</button>
+                        <button id="edit-delete-btn" class="danger-btn">削除</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics Screen -->
+        <div id="stats-screen" class="screen hidden">
+            <header class="app-header">
+                <h2>学習記録</h2>
+                <button id="stats-close-btn" class="icon-btn">✖</button>
+            </header>
+            <div class="stats-content">
+                <div class="stats-summary">
+                    <div class="stat-card">
+                        <h3>総回答数</h3>
+                        <p id="total-answers">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>正答率</h3>
+                        <p id="total-rate">0%</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>最終学習日</h3>
+                        <p id="last-played">-</p>
+                    </div>
+                </div>
+                <h3>ジャンル別正答率</h3>
+                <div id="stats-chart" class="chart-container">
+                    <!-- Chart bars -->
+                </div>
+                <button id="reset-stats-btn" class="danger-btn" style="margin-top:20px;">記録をリセット</button>
+            </div>
+        </div>
+
         <section id="result-area" class="hidden" style="text-align: center;">
             <h2 style="font-size: 2rem; color: var(--primary-color); margin-bottom: 0.5rem;" id="final-verdict">試験終了
             </h2>
@@ -135,7 +202,7 @@
     </div>
 
     <script src="questions.js"></script>
-    <script src="app.js"></script>
+    <script type="module" src="app.js"></script>
 </body>
 
 </html>

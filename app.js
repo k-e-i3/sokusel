@@ -569,5 +569,16 @@ saveDriveBtn.onclick = () => {
         return;
     }
     driveClient.saveData('questions.json', questionsData);
+    driveClient.saveData('questions.json', questionsData);
     driveClient.saveData('stats.json', statistics);
 };
+
+// Start Screen Buttons (Bound here to ensure availability)
+const startAuthBtn = document.getElementById('auth-btn-start');
+const startParamsBtn = document.getElementById('params-btn-start');
+const startEditorBtn = document.getElementById('editor-btn-start');
+
+if (startAuthBtn) startAuthBtn.onclick = () => driveClient.login();
+if (startParamsBtn) startParamsBtn.onclick = () => { updateStatsUI(); showScreen('stats'); };
+if (startEditorBtn) startEditorBtn.onclick = () => { renderQuestionList(); showScreen('editor'); };
+

@@ -1,4 +1,4 @@
-const questions = [
+window.questions = [
     {
         id: "R7-01-a",
         genre: "法規等",
