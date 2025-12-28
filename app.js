@@ -19,14 +19,18 @@ class DriveClient {
 
     async init() {
         try {
+            this.onStatusChange("⏳ Google連携を準備中...");
             await this.waitForGoogleLibs();
 
             window.gapi.load('client', async () => {
                 try {
                     await window.gapi.client.init({});
                     await window.gapi.client.load('drive', 'v3');
-                    this.onStatusChange("Google連携準備完了");
-                } catch (e) { console.error("GAPI Error", e); }
+                    this.onStatusChange("🔐 ログインしてデータを同期 (Gボタン)");
+                } catch (e) {
+                    console.error("GAPI Error", e);
+                    this.onStatusChange("❌ Google API初期化失敗");
+                }
             });
 
             this.tokenClient = window.google.accounts.oauth2.initTokenClient({
@@ -34,10 +38,9 @@ class DriveClient {
                 callback: (resp) => this.handleAuthResponse(resp),
             });
 
-            this.onStatusChange("準備OK");
         } catch (err) {
             console.error("System Init Error:", err);
-            this.onStatusChange("オフライン");
+            this.onStatusChange("❌ オフライン - ローカルデータを使用");
         }
     }
 
@@ -1373,6 +1376,53 @@ const startEditorBtn = document.getElementById('editor-btn-start');
 if (startAuthBtn) startAuthBtn.onclick = () => driveClient.login();
 if (startParamsBtn) startParamsBtn.onclick = () => { updateStatsUI(); showScreen('stats'); };
 if (startEditorBtn) startEditorBtn.onclick = () => { renderQuestionList(); showScreen('editor'); };
+
+// Explicit Sync Buttons (User Request)
+const syncLoadBtn = document.getElementById('sync-load-btn');
+const syncSaveBtn = document.getElementById('sync-save-btn');
+
+if (syncLoadBtn) syncLoadBtn.onclick = async () => {
+    if (!driveClient.accessToken) {
+        alert("先にGボタンでログインしてください");
+        return;
+    }
+    driveClient.onStatusChange("📥 データ読込中...");
+    try {
+        const remoteQ = await driveClient.loadData('questions.json');
+        if (remoteQ && Array.isArray(remoteQ)) {
+            questionsData = remoteQ;
+            renderQuestionList();
+        }
+        const remoteS = await driveClient.loadData('stats.json');
+        if (remoteS) {
+            statistics = remoteS;
+            localStorage.setItem('sokusel_stats', JSON.stringify(statistics));
+            updateStatsUI();
+        }
+        driveClient.onStatusChange(`✅ 読込完了 (${new Date().toLocaleTimeString()}) Q:${questionsData.length}問 / 回答:${statistics.totalAnswers}回`);
+        alert(`データを読み込みました！\n問題数: ${questionsData.length}問\n回答記録: ${statistics.totalAnswers}回`);
+    } catch (e) {
+        driveClient.onStatusChange("❌ 読込失敗: " + e.message);
+        alert("読み込みに失敗しました: " + e.message);
+    }
+};
+
+if (syncSaveBtn) syncSaveBtn.onclick = async () => {
+    if (!driveClient.accessToken) {
+        alert("先にGボタンでログインしてください");
+        return;
+    }
+    driveClient.onStatusChange("📤 データ保存中...");
+    try {
+        await driveClient.saveData('questions.json', questionsData);
+        await driveClient.saveData('stats.json', statistics);
+        driveClient.onStatusChange(`✅ 保存完了 (${new Date().toLocaleTimeString()})`);
+        alert(`データを保存しました！\n問題数: ${questionsData.length}問\n回答記録: ${statistics.totalAnswers}回`);
+    } catch (e) {
+        driveClient.onStatusChange("❌ 保存失敗: " + e.message);
+        alert("保存に失敗しました: " + e.message);
+    }
+};
 
 const editorAuthBtn = document.getElementById('editor-auth-btn');
 if (editorAuthBtn) editorAuthBtn.onclick = () => driveClient.login();
