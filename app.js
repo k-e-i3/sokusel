@@ -564,10 +564,13 @@ if (checkBtn) checkBtn.onclick = () => {
     if (gameEditBtn) {
         gameEditBtn.classList.remove('hidden');
         gameEditBtn.onclick = () => {
-            // Basic open editor for this question
-            // We need to find the index in MAIN questionsData, not filteredQuestions
-            const mainIdx = questionsData.findIndex(item => item.id === q.id);
-            if (mainIdx >= 0) openEditor(mainIdx);
+            // Robust find: Compare as strings to avoid type mismatches
+            const mainIdx = questionsData.findIndex(item => String(item.id) === String(q.id));
+            if (mainIdx >= 0) {
+                openEditor(mainIdx);
+            } else {
+                alert("編集対象の問題が見つかりませんでした (ID不一致)");
+            }
         };
     }
 
@@ -735,6 +738,41 @@ function updateStatsUI() {
 
         setTimeout(() => row.querySelector('.chart-bar-fill').style.width = `${r}%`, 100);
     });
+
+    // Feature 3 UI: Question Stats
+    const qStatsList = document.getElementById('question-stats-list');
+    if (qStatsList && statistics.questionStats) {
+        qStatsList.innerHTML = '';
+        // Sort by correct rate (ascending - worst first) or wrong count (descending)
+        // Let's go with wrong count descending.
+        const sortedQIds = Object.keys(statistics.questionStats).sort((a, b) => {
+            const sa = statistics.questionStats[a];
+            const sb = statistics.questionStats[b];
+            return sb.wrong - sa.wrong; // Most wrong first
+        });
+
+        if (sortedQIds.length === 0) {
+            qStatsList.innerHTML = '<p style="text-align:center; color:#64748b;">データがありません</p>';
+        } else {
+            sortedQIds.slice(0, 20).forEach(qid => { // Show top 20
+                const s = statistics.questionStats[qid];
+                if (s.wrong === 0 && s.correct > 0) return; // Skip perfect ones for now
+
+                const rate = Math.round((s.correct / (s.correct + s.wrong)) * 100);
+                const div = document.createElement('div');
+                div.className = 'q-stat-item';
+                div.style.cssText = 'display:flex; justify-content:space-between; padding:8px; border-bottom:1px solid #eee;';
+                div.innerHTML = `
+                    <div style="font-weight:bold;">${qid}</div>
+                    <div>
+                        <span style="color:var(--error-color); font-weight:bold;">${s.wrong}ミス</span>
+                        <span style="color:#64748b; font-size:0.9em; margin-left:8px;">(正答率 ${rate}%)</span>
+                    </div>
+                `;
+                qStatsList.appendChild(div);
+            });
+        }
+    }
 }
 
 if (resetStatsBtn) resetStatsBtn.onclick = () => {
