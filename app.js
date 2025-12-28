@@ -906,45 +906,51 @@ function addSegmentRow(seg = { text: "", type: "static" }) {
         const details = document.createElement('div');
         details.className = "segment-detail";
 
-        // Unified Choices (Radios + Inputs)
-        details.innerHTML += `<label style="font-size:0.75rem;">選択肢 (正解にチェックを入れてください):</label>`;
+        // V5 Strict Layout: 
+        // 1. Correct Answer (Fixed)
+        // 2. Distractor 1
+        // 3. Distractor 2
 
-        const currentCorrect = seg.correctAnswer || "";
+        details.innerHTML += `<div style="margin-top:8px; margin-bottom:4px; font-weight:bold; font-size:0.8rem;">選択肢① (正解):</div>`;
+        const correctIn = document.createElement('input');
+        correctIn.className = "correct-input-fixed";
+        correctIn.value = seg.correctAnswer || "";
+        correctIn.placeholder = "ここに正解を入力 (例: ミカン)";
+        correctIn.style.width = "100%";
+        correctIn.style.border = "2px solid #bef264"; // Lime border for Correct
+        details.appendChild(correctIn);
+
+        // Distractors
         const allOpts = seg.options || [];
+        const currentCorrect = seg.correctAnswer;
 
-        // Ensure at least 3 input slots.
-        const displayOpts = [...allOpts];
-        while (displayOpts.length < 3) displayOpts.push("");
+        // Filter distractors (everything that is NOT the correct answer)
+        // Note: seg.options usually contains [Correct, Dist1, Dist2...] randomly or ordered.
+        // We need to extract the distractors.
+        let distractors = [];
+        if (currentCorrect) {
+            distractors = allOpts.filter(o => o !== currentCorrect);
+        } else {
+            // If no correct answer defined yet, maybe all are distractors? 
+            // Or maybe it's raw data.
+            // Let's just take all and shift? No, safer to just show empty slots.
+            distractors = [...allOpts];
+        }
 
-        const choicesConfigs = displayOpts.slice(0, 3);
-        const radioName = `correct-radio-${Date.now()}-${Math.random()}`;
+        // Layout for Distractors
+        details.innerHTML += `<div style="margin-top:8px; margin-bottom:4px; font-size:0.8rem;">選択肢②:</div>`;
+        const dist1 = document.createElement('input');
+        dist1.className = "distractor-input";
+        dist1.value = distractors[0] || "";
+        dist1.placeholder = "ダミー選択肢 (例: リンゴ)";
+        details.appendChild(dist1);
 
-        choicesConfigs.forEach((val, i) => {
-            const container = document.createElement('div');
-            container.style.cssText = "display:flex; align-items:center; margin-bottom:4px;";
-
-            // Radio Button
-            const radio = document.createElement('input');
-            radio.type = "radio";
-            radio.name = radioName;
-            radio.className = "correct-radio";
-            radio.value = i;
-            if (val && val === currentCorrect) {
-                radio.checked = true;
-            }
-
-            // Input
-            const optIn = document.createElement('input');
-            optIn.className = "options-input-single";
-            optIn.value = val;
-            optIn.placeholder = `選択肢 ${i + 1}`;
-            optIn.style.flex = "1";
-            optIn.style.marginLeft = "8px";
-
-            container.appendChild(radio);
-            container.appendChild(optIn);
-            details.appendChild(container);
-        });
+        details.innerHTML += `<div style="margin-top:4px; margin-bottom:4px; font-size:0.8rem;">選択肢③:</div>`;
+        const dist2 = document.createElement('input');
+        dist2.className = "distractor-input";
+        dist2.value = distractors[1] || "";
+        dist2.placeholder = "ダミー選択肢 (例: バナナ)";
+        details.appendChild(dist2);
 
         row.appendChild(details);
     }
@@ -1043,11 +1049,13 @@ if (editSaveBtn) editSaveBtn.onclick = () => {
         segs.forEach((s, idx) => {
             if (s.type === 'interactive') {
                 if (!s.correctAnswer) {
-                    alert(`エラー: セグメント ${idx + 1} の正解が選択されていません。\n選択肢の横にあるラジオボタン（〇）で正解を指定してください。`);
+                    alert(`エラー: セグメント ${idx + 1} の「選択肢①(正解)」が入力されていません。`);
                     hasError = true;
                 } else if (s.options.length < 2) {
-                    // Less than 2 options? (1 correct + 0 others) -> Just a button?
-                    // Maybe allow? But usually need choices.
+                    // Warn if only 1 option (just the correct answer)
+                    if (!confirm(`警告: セグメント ${idx + 1} に選択肢（ダミー）がありません。\nこれではクイズになりませんが、よろしいですか？`)) {
+                        hasError = true;
+                    }
                 }
             }
         });
