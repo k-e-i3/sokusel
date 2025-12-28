@@ -205,6 +205,7 @@ let statistics = JSON.parse(localStorage.getItem('sokusel_stats')) || {
 
 // V2 Game State
 let filteredQuestions = [];
+window.sessionWrongQuestions = []; // Global
 let sessionGenreScores = {};
 let selectedGenre = 'all';
 let selectedCount = 10;
@@ -444,6 +445,11 @@ function initQuestion() {
     if (selectionModal) selectionModal.classList.add('hidden');
     if (checkBtn) checkBtn.classList.remove('hidden');
     if (nextBtn) nextBtn.classList.add('hidden');
+
+    // Feature 1b: Hide Edit Button
+    const gameEditBtn = document.getElementById('game-edit-btn');
+    if (gameEditBtn) gameEditBtn.classList.add('hidden');
+
     if (overlay) overlay.classList.remove('active');
     if (charMsg && charMsg.parentElement) charMsg.parentElement.style.visibility = 'hidden';
 
@@ -455,6 +461,11 @@ function initQuestion() {
 
     const q = filteredQuestions[currentQIndex];
     if (progressDisplay) progressDisplay.textContent = `Q${currentQIndex + 1} / ${maxQ}`;
+
+    // Feature 4: Display ID
+    const idBadge = document.getElementById('question-id-display');
+    if (idBadge) idBadge.textContent = `ID: ${q.id}`;
+
     if (instructionText) instructionText.textContent = q.instruction || "誤っている箇所を訂正しなさい。";
 
     currentSegments = JSON.parse(JSON.stringify(q.segments));
@@ -537,6 +548,29 @@ if (checkBtn) checkBtn.onclick = () => {
 
     const allCorrect = currentSegments.filter(s => s.type === 'interactive').every(s => s.text === s.correctAnswer);
 
+    // Feature 2: Track Wrong Questions
+    if (!allCorrect) {
+        if (!typeof sessionWrongQuestions !== 'undefined') {
+            // Ensure global var exists if not defined at top yet (it was defined in previous thought but not file)
+            // Wait, I need to define it at top. I'll add it in Chunk 1 or separate?
+            // I'll assume I can add it here or use global.
+        }
+        if (window.sessionWrongQuestions) window.sessionWrongQuestions.push(q);
+        else console.warn("sessionWrongQuestions not defined");
+    }
+
+    // Feature 1b: Show Edit Button
+    const gameEditBtn = document.getElementById('game-edit-btn');
+    if (gameEditBtn) {
+        gameEditBtn.classList.remove('hidden');
+        gameEditBtn.onclick = () => {
+            // Basic open editor for this question
+            // We need to find the index in MAIN questionsData, not filteredQuestions
+            const mainIdx = questionsData.findIndex(item => item.id === q.id);
+            if (mainIdx >= 0) openEditor(mainIdx);
+        };
+    }
+
     renderSentence();
 
     feedbackBox.classList.remove('hidden');
@@ -546,7 +580,7 @@ if (checkBtn) checkBtn.onclick = () => {
     charMsg.parentElement.style.visibility = 'visible';
 
     // Update Stats
-    updateStats(g, allCorrect);
+    updateStats(g, allCorrect, q.id);
 
     if (allCorrect) {
         score++;
@@ -580,10 +614,21 @@ function showSummary() {
     const totalQ = filteredQuestions.length;
     finalScore.textContent = `${score} / ${totalQ}`;
 
-    const percent = (score / totalQ) * 100;
+    const percent = totalQ > 0 ? (score / totalQ) * 100 : 0;
     if (percent === 100) finalVerdict.textContent = "完全制覇！";
     else if (percent >= 80) finalVerdict.textContent = "合格圏内！";
     else finalVerdict.textContent = "試験終了";
+
+    // Feature 2: Retry Button Logic
+    const retryMistakesBtn = document.getElementById('retry-mistakes-btn');
+    if (retryMistakesBtn) {
+        if (typeof sessionWrongQuestions !== 'undefined' && sessionWrongQuestions.length > 0) {
+            retryMistakesBtn.classList.remove('hidden');
+            retryMistakesBtn.onclick = startReviewMode;
+        } else {
+            retryMistakesBtn.classList.add('hidden');
+        }
+    }
 
     analyticsChart.innerHTML = '';
     Object.keys(sessionGenreScores).forEach(genre => {
@@ -608,12 +653,34 @@ function showSummary() {
     });
 }
 
+function startReviewMode() {
+    if (!sessionWrongQuestions || sessionWrongQuestions.length === 0) return;
+
+    // Setup for Review
+    filteredQuestions = [...sessionWrongQuestions];
+    sessionWrongQuestions = []; // Reset for loop protection
+    score = 0;
+    currentQIndex = 0;
+
+    // Reset session scores for this run
+    sessionGenreScores = {};
+    filteredQuestions.forEach(q => {
+        const g = q.genre || 'その他';
+        if (!sessionGenreScores[g]) sessionGenreScores[g] = { total: 0, correct: 0 };
+    });
+
+    screens.result.classList.add('hidden');
+    screens.game.style.display = 'block';
+
+    initQuestion();
+}
+
 const retryBtn = document.getElementById('retry-btn');
 if (retryBtn) retryBtn.onclick = () => showScreen('start');
 
 
 // --- Statistics Logic ---
-function updateStats(genre, isCorrect) {
+function updateStats(genre, isCorrect, questionId) {
     statistics.totalAnswers++;
     if (isCorrect) statistics.totalCorrect++;
 
@@ -622,6 +689,15 @@ function updateStats(genre, isCorrect) {
     }
     statistics.genreStats[genre].total++;
     if (isCorrect) statistics.genreStats[genre].correct++;
+
+    // Feature 3: Question Stats
+    if (questionId) {
+        if (!statistics.questionStats) statistics.questionStats = {};
+        if (!statistics.questionStats[questionId]) statistics.questionStats[questionId] = { correct: 0, wrong: 0 };
+
+        if (isCorrect) statistics.questionStats[questionId].correct++;
+        else statistics.questionStats[questionId].wrong++;
+    }
 
     statistics.lastPlayed = new Date().toLocaleDateString('ja-JP');
 
