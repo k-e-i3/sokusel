@@ -200,10 +200,15 @@ class DriveClient {
                     body: body
                 });
             }
-            this.onStatusChange("保存完了");
+            this.onStatusChange("✅ 保存完了: " + fileName);
+            // Explicit Feedback as requested
+            if (fileName === 'questions.json') {
+                alert(`Google Driveに問題データを保存しました！\nファイル名: ${fileName}\n時刻: ${new Date().toLocaleTimeString()}`);
+            }
         } catch (e) {
             console.error("Save error", e);
-            this.onStatusChange("保存失敗");
+            this.onStatusChange("❌ 保存失敗");
+            alert(`Google Driveへの保存に失敗しました。\nエラー: ${e.message}`);
         }
     }
 }
@@ -498,6 +503,25 @@ function initQuestion() {
     if (instructionText) instructionText.textContent = q.instruction || "誤っている箇所を訂正しなさい。";
 
     currentSegments = JSON.parse(JSON.stringify(q.segments));
+
+    // Feature: Randomize Problem Text with Distractors (Memory Training)
+    // For each interactive segment, if it's not already correct (or maybe we force it to be wrong for the game?), 
+    // pick a RANDOM WRONG option to display as the initial text.
+    // This forces the user to recognize it's wrong, rather than memorizing "X matches Y".
+    currentSegments.forEach(seg => {
+        if (seg.type === 'interactive' && seg.options && seg.options.length >= 2) {
+            // Find distractors (options that are NOT the correct answer)
+            const distractors = seg.options.filter(opt => opt !== seg.correctAnswer);
+
+            if (distractors.length > 0) {
+                // Pick random distractor
+                const randomDistractor = distractors[Math.floor(Math.random() * distractors.length)];
+                // Set the displayed text to this wrong answer
+                seg.text = randomDistractor;
+            }
+        }
+    });
+
     renderSentence();
 }
 
