@@ -970,28 +970,22 @@ function getSegmentsFromEditor() {
         if (type === 'static') {
             segments.push({ text, type });
         } else {
-            // Collect Options
+            // Collect Options V5
             const detail = row.querySelector('.segment-detail');
-            const optInputs = detail.querySelectorAll('.options-input-single');
-            const radios = detail.querySelectorAll('.correct-radio');
 
+            const correctIn = detail.querySelector('.correct-input-fixed');
+            const distInputs = detail.querySelectorAll('.distractor-input');
+
+            const correctAnswer = correctIn ? correctIn.value.trim() : "";
             const options = [];
-            let correctAnswer = "";
-            let selectedIdx = -1;
 
-            optInputs.forEach((inp, idx) => {
-                const cw = inp.value.trim();
-                // We keep empty strings? Or filter?
-                // If we filter, indices shift.
-                // We should probably filter empty options at the end, 
-                // BUT we need to know which one was checked.
-                if (cw) {
-                    options.push(cw);
-                    if (radios[idx].checked) {
-                        correctAnswer = cw;
-                        selectedIdx = idx;
-                    }
-                }
+            // Add Correct Answer first
+            if (correctAnswer) options.push(correctAnswer);
+
+            // Add Distractors
+            distInputs.forEach(inp => {
+                const val = inp.value.trim();
+                if (val) options.push(val);
             });
 
             // If checking fails (e.g. checked empty option), or nothing checked.
