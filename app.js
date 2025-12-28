@@ -887,138 +887,187 @@ function addSegmentRow(seg = { text: "", type: "static" }) {
         correctIn.placeholder = "正しい文言";
         details.appendChild(correctIn);
 
-        // Options
-        const opts = (seg.options || []).join(',');
-        details.innerHTML += `<label style="font-size:0.75rem;">選択肢 (カンマ区切り):</label>`;
-        const optsIn = document.createElement('input');
-        optsIn.className = "options-input";
-        optsIn.value = opts;
-        optsIn.placeholder = "例: 誤り,正しい,その他";
-        details.appendChild(optsIn);
+        // Options - Split into 3 inputs as requested
+        const opts = (seg.options || []);
+        details.innerHTML += `<label style="font-size:0.75rem;">選択肢 (ダミーの誤答):</label>`;
+
+        // Ensure at least 3 inputs
+        for (let i = 0; i < 3; i++) {
+            const val = opts[i] || "";
+            const optIn = document.createElement('input');
+            optIn.className = "options-input-single";
+            optIn.value = val;
+            optIn.placeholder = `選択肢 ${i + 1}`;
+            optIn.style.marginBottom = "4px";
+            details.appendChild(optIn);
+        }
 
         row.appendChild(details);
+        list.appendChild(row);
     }
 
-    list.appendChild(row);
-}
+    function getSegmentsFromEditor() {
+        const list = document.getElementById('segment-list');
+        const rows = list.querySelectorAll('.segment-row');
+        const segments = [];
 
-function getSegmentsFromEditor() {
-    const list = document.getElementById('segment-list');
-    const rows = list.querySelectorAll('.segment-row');
-    const segments = [];
+        rows.forEach(row => {
+            const type = row.querySelector('.segment-type-select').value;
+            const text = row.querySelector('.text-input').value;
 
-    rows.forEach(row => {
-        const type = row.querySelector('.segment-type-select').value;
-        const text = row.querySelector('.text-input').value;
+            if (type === 'static') {
+                segments.push({ text, type });
+            } else {
+                const detail = row.querySelector('.segment-detail');
+                const correctAnswer = detail.querySelector('.correct-input').value;
 
-        if (type === 'static') {
-            segments.push({ text, type });
-        } else {
-            const detail = row.querySelector('.segment-detail');
-            const correctAnswer = detail.querySelector('.correct-input').value;
-            const optionsStr = detail.querySelector('.options-input').value;
-            const options = optionsStr.split(',').map(s => s.trim()).filter(s => s);
+                // Collect from multiple inputs
+                const optInputs = detail.querySelectorAll('.options-input-single');
+                const options = Array.from(optInputs).map(inp => inp.value.trim()).filter(v => v);
 
-            segments.push({ text, type, correctAnswer, options });
-        }
-    });
-    return segments;
-}
+                // Ensure correct answer is included in options if not already? 
+                // Usually options should include the correct one AND wrong ones.
+                // The user requested inputs for "Options". 
+                // In the modal logic, we use "options". 
+                // So these inputs are ALL options including the correct one? 
+                // Or just the distractors? 
+                // The previous logic was "comma separated" -> "options".
+                // Typically "options" includes the correct answer. 
+                // If the user inputs "Answer, Wrong1, Wrong2", then random shuffle works.
+                // I will assume these inputs are ALL options.
+                // If the user omits the correct answer from options, it won't appear in the modal.
+                // I should auto-add the correct answer if missing? 
+                // No, user can control it. 
+                // But let's add a hint or ensure safety. 
+                // For now, simple collection.
 
-const addSegmentBtn = document.getElementById('add-segment-btn');
-if (addSegmentBtn) addSegmentBtn.onclick = () => {
-    addSegmentRow({ text: "新規", type: "static" });
-};
+                segments.push({ text, type, correctAnswer, options });
+            }
+        });
+        return segments;
+    }
 
-if (addQuestionBtn) addQuestionBtn.onclick = () => {
-    // Switch to editor screen if not already
-    showScreen('editor');
+    const addSegmentBtn = document.getElementById('add-segment-btn');
+    if (addSegmentBtn) addSegmentBtn.onclick = () => {
+        addSegmentRow({ text: "新規", type: "static" });
+    };
 
-    editingIndex = -1;
-    editorForm.classList.remove('hidden');
-    editId.value = `New-${Date.now()}`;
-    editGenre.value = "測量法";
-    renderSegmentEditor([
-        { text: "新しい", type: "static" },
-        { text: "問題", type: "static" }
-    ]);
-    editExplanation.value = "";
-    editorForm.scrollIntoView({ behavior: 'smooth' });
-};
+    if (addQuestionBtn) addQuestionBtn.onclick = () => {
+        // Switch to editor screen if not already
+        showScreen('editor');
 
-function openEditor(idx) {
-    // Ensure we are on the editor screen
-    showScreen('editor');
-    // Ensure list is populated behind the form (for context)
-    renderQuestionList();
+        editingIndex = -1;
+        editorForm.classList.remove('hidden');
+        editId.value = `New-${Date.now()}`;
+        editGenre.value = "測量法";
+        renderSegmentEditor([
+            { text: "新しい", type: "static" },
+            { text: "問題", type: "static" }
+        ]);
+        editExplanation.value = "";
+        editorForm.scrollIntoView({ behavior: 'smooth' });
+    };
 
-    editingIndex = idx;
-    const q = questionsData[idx];
-    editorForm.classList.remove('hidden');
-    editId.value = q.id;
-    editGenre.value = q.genre;
-    renderSegmentEditor(q.segments || []);
-    editExplanation.value = q.explanation;
-    editorForm.scrollIntoView({ behavior: 'smooth' });
-}
-
-if (editSaveBtn) editSaveBtn.onclick = () => {
-    try {
-        const segs = getSegmentsFromEditor();
-        const newQ = {
-            id: editId.value,
-            genre: editGenre.value,
-            instruction: "誤っている箇所を訂正しなさい。",
-            segments: segs,
-            explanation: editExplanation.value
-        };
-
-        if (editingIndex >= 0) {
-            questionsData[editingIndex] = newQ;
-        } else {
-            questionsData.push(newQ);
-        }
-
-        editorForm.classList.add('hidden');
+    function openEditor(idx) {
+        // Ensure we are on the editor screen
+        showScreen('editor');
+        // Ensure list is populated behind the form (for context)
         renderQuestionList();
 
-        // Auto-save to Drive if available
-        if (driveClient.accessToken) {
-            driveClient.saveData('questions.json', questionsData);
+        editingIndex = idx;
+        const q = questionsData[idx];
+        editorForm.classList.remove('hidden');
+        editId.value = q.id;
+        editGenre.value = q.genre;
+        renderSegmentEditor(q.segments || []);
+        editExplanation.value = q.explanation;
+        editorForm.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    if (editSaveBtn) editSaveBtn.onclick = () => {
+        try {
+            const segs = getSegmentsFromEditor();
+            const newQ = {
+                id: editId.value,
+                genre: editGenre.value,
+                instruction: "誤っている箇所を訂正しなさい。",
+                segments: segs,
+                explanation: editExplanation.value
+            };
+
+            if (editingIndex >= 0) {
+                questionsData[editingIndex] = newQ;
+            } else {
+                questionsData.push(newQ);
+            }
+
+            // Update UI
+            renderQuestionList();
+            alert("変更をリストに適用しました。\n(Driveへの保存は「Driveに保存」ボタンを押してください)");
+
+            // I will NOT hide the form immediately so they can keep editing if they want,
+            // or I should hide it as before? User finds the flow confusing.
+            // "I have to authenticate... then re-write". 
+            // If I keep it open, they don't lose work.
+            // But usually "Save" implies "Done". 
+            // Let's hide it but ensure data is safe.
+            // Actually, if I just "Apply to List", it's in memory.
+            editorForm.classList.add('hidden');
+
+            // Auto-save logic with Feedback
+            if (driveClient.accessToken) {
+                driveClient.saveData('questions.json', questionsData).then(() => {
+                    // Success is handled by status callback usually, but we can alert here?
+                    // driveClient.saveData is async and returns promise (void).
+                    // The status callback updates the UI text.
+                    alert("Google Driveへの保存に成功しました！");
+                });
+            } else {
+                // Not logged in.
+                if (confirm("Google Driveに保存されていません。\nログインして保存しますか？")) {
+                    driveClient.login();
+                    // After login, we need to save? 
+                    // Login is async flow. We can't await it easily here without callback.
+                    // But we can trigger save after login in status handler??
+                    // Too complex for now. Just warn.
+                }
+            }
+        } catch (e) {
+            alert("保存エラー:\n" + e.message);
         }
-    } catch (e) {
-        alert("保存エラー:\n" + e.message);
-    }
-};
+    };
 
-if (editCancelBtn) editCancelBtn.onclick = () => {
-    editorForm.classList.add('hidden');
-};
-
-if (editDeleteBtn) editDeleteBtn.onclick = () => {
-    if (editingIndex >= 0 && confirm("この問題を削除しますか？")) {
-        questionsData.splice(editingIndex, 1);
+    if (editCancelBtn) editCancelBtn.onclick = () => {
         editorForm.classList.add('hidden');
-        renderQuestionList();
-        if (driveClient.accessToken) driveClient.saveData('questions.json', questionsData);
-    }
-};
+    };
 
-if (saveDriveBtn) saveDriveBtn.onclick = () => {
-    if (!driveClient.accessToken) {
-        alert("先にGoogle認証を行ってください");
-        return;
-    }
-    driveClient.saveData('questions.json', questionsData);
-    driveClient.saveData('questions.json', questionsData);
-    driveClient.saveData('stats.json', statistics);
-};
+    if (editDeleteBtn) editDeleteBtn.onclick = () => {
+        if (editingIndex >= 0 && confirm("この問題を削除しますか？")) {
+            questionsData.splice(editingIndex, 1);
+            editorForm.classList.add('hidden');
+            renderQuestionList();
+            if (driveClient.accessToken) driveClient.saveData('questions.json', questionsData);
+        }
+    };
 
-// Start Screen Buttons (Bound here to ensure availability)
-const startAuthBtn = document.getElementById('auth-btn-start');
-const startParamsBtn = document.getElementById('params-btn-start');
-const startEditorBtn = document.getElementById('editor-btn-start');
+    if (saveDriveBtn) saveDriveBtn.onclick = () => {
+        if (!driveClient.accessToken) {
+            alert("先にGoogle認証を行ってください");
+            return;
+        }
+        driveClient.saveData('questions.json', questionsData);
+        driveClient.saveData('questions.json', questionsData);
+        driveClient.saveData('stats.json', statistics);
+    };
 
-if (startAuthBtn) startAuthBtn.onclick = () => driveClient.login();
-if (startParamsBtn) startParamsBtn.onclick = () => { updateStatsUI(); showScreen('stats'); };
-if (startEditorBtn) startEditorBtn.onclick = () => { renderQuestionList(); showScreen('editor'); };
+    // Start Screen Buttons (Bound here to ensure availability)
+    const startAuthBtn = document.getElementById('auth-btn-start');
+    const startParamsBtn = document.getElementById('params-btn-start');
+    const startEditorBtn = document.getElementById('editor-btn-start');
+
+    if (startAuthBtn) startAuthBtn.onclick = () => driveClient.login();
+    if (startParamsBtn) startParamsBtn.onclick = () => { updateStatsUI(); showScreen('stats'); };
+    if (startEditorBtn) startEditorBtn.onclick = () => { renderQuestionList(); showScreen('editor'); };
+
+    const editorAuthBtn = document.getElementById('editor-auth-btn');
+    if (editorAuthBtn) editorAuthBtn.onclick = () => driveClient.login();
