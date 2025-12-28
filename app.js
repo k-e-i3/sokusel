@@ -958,108 +958,162 @@ function addSegmentRow(seg = { text: "", type: "static" }) {
     list.appendChild(row);
 }
 
-// Editor V7 Fixed Layout Logic
+// Editor V8 Fixed Layout Logic (Safe DOM)
 function renderSegmentEditor(segments) {
     const list = document.getElementById('segment-list');
     if (!list) return;
     list.innerHTML = '';
-
-    // V7 Enforce Fixed Structure:
-    // [Static (Prefix)] + [Interactive (Target)] + [Static (Suffix)]
 
     // Heuristic Mappers:
     let prefix = "";
     let targetSeg = { text: "", correctAnswer: "", options: [] };
     let suffix = "";
 
+    // Attempt to map based on V7 fixed structure: Static -> Interactive -> Static
     const interactIdx = segments.findIndex(s => s.type === 'interactive');
     if (interactIdx !== -1) {
         targetSeg = segments[interactIdx];
+        // Everything before is prefix
         prefix = segments.slice(0, interactIdx).map(s => s.text).join("");
+        // Everything after is suffix
         suffix = segments.slice(interactIdx + 1).map(s => s.text).join("");
     } else {
-        // Assume all static are prefix
+        // Fallback: Check if we have 3 static segments (maybe user deleted interactive?)
+        // Or just put everything in prefix.
         prefix = segments.map(s => s.text).join("");
     }
 
-    // -- Part 1: Prefix --
-    const row1 = document.createElement('div');
-    row1.className = 'segment-row';
-    row1.innerHTML = `<label style="display:block; font-weight:bold; margin-bottom:4px; font-size:0.9rem;">問題文①：前半部分 (文頭・前置き)</label>`;
-    const input1 = document.createElement('input');
-    input1.className = "text-input fixed-prefix";
-    input1.value = prefix;
-    input1.placeholder = "例：基本測量の測量成果を";
-    input1.style.width = "100%";
-    row1.appendChild(input1);
-    list.appendChild(row1);
+    // Helper for creating labelled rows safely
+    const createRow = (labelText, inputClass, value, placeholder, styles = {}) => {
+        const row = document.createElement('div');
+        row.className = 'segment-row';
+        if (styles.rowClass) row.className += ' ' + styles.rowClass;
 
-    // -- Part 2: Target (Interactive) --
-    const row2 = document.createElement('div');
-    row2.className = 'segment-row interactive';
-    row2.innerHTML = `<label style="display:block; font-weight:bold; margin-bottom:4px; font-size:0.9rem;">問題文②：訂正箇所 (ボタンになる部分)</label>`;
-    const input2 = document.createElement('input');
-    input2.className = "text-input fixed-target";
-    input2.value = targetSeg.text;
-    input2.placeholder = "例：国土地理院の長の承認";
-    input2.style.width = "100%";
-    input2.style.backgroundColor = "#eff6ff";
-    input2.style.borderColor = "#3b82f6";
-    row2.appendChild(input2);
-    list.appendChild(row2);
+        const label = document.createElement('label');
+        label.style.display = 'block';
+        label.style.fontWeight = 'bold';
+        label.style.marginBottom = '4px';
+        label.style.fontSize = '0.9rem';
+        label.textContent = labelText;
+        if (styles.labelColor) label.style.color = styles.labelColor;
 
-    // -- Part 3: Suffix --
-    const row3 = document.createElement('div');
-    row3.className = 'segment-row';
-    row3.innerHTML = `<label style="display:block; font-weight:bold; margin-bottom:4px; font-size:0.9rem;">問題文③：後半部分 (文末・締め)</label>`;
-    const input3 = document.createElement('input');
-    input3.className = "text-input fixed-suffix";
-    input3.value = suffix;
-    input3.placeholder = "例：を得なければならない。";
-    input3.style.width = "100%";
-    row3.appendChild(input3);
-    list.appendChild(row3);
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = inputClass;
+        input.value = value || "";
+        input.placeholder = placeholder;
+        input.style.width = '100%';
+        input.style.padding = '8px';
+        input.style.border = '1px solid #ccc';
+        input.style.borderRadius = '4px';
 
-    // -- Choices --
-    const rowChoices = document.createElement('div');
-    rowChoices.className = 'segment-row';
-    rowChoices.style.backgroundColor = "#f0fdf4";
+        if (styles.bg) input.style.backgroundColor = styles.bg;
+        if (styles.borderColor) input.style.borderColor = styles.borderColor;
+        if (styles.borderWidth) input.style.borderWidth = styles.borderWidth;
 
+        row.appendChild(label);
+        row.appendChild(input);
+        return row;
+    };
+
+    // 1. Prefix
+    list.appendChild(createRow(
+        "問題文①：前半部分 (文頭・前置き)",
+        "text-input fixed-prefix",
+        prefix,
+        "例：基本測量の測量成果を"
+    ));
+
+    // 2. Target
+    list.appendChild(createRow(
+        "問題文②：訂正箇所 (ボタンになる部分)",
+        "text-input fixed-target",
+        targetSeg.text,
+        "例：国土地理院の長の承認",
+        { rowClass: 'interactive', bg: '#eff6ff', borderColor: '#3b82f6' }
+    ));
+
+    // 3. Suffix
+    list.appendChild(createRow(
+        "問題文③：後半部分 (文末・締め)",
+        "text-input fixed-suffix",
+        suffix,
+        "例：を得なければならない。"
+    ));
+
+    // 4. Choices Container
+    const choicesRow = document.createElement('div');
+    choicesRow.className = 'segment-row';
+    choicesRow.style.backgroundColor = '#f0fdf4';
+    choicesRow.style.padding = '10px';
+    choicesRow.style.marginTop = '10px';
+    choicesRow.style.border = '1px solid #dcfce7';
+    choicesRow.style.borderRadius = '4px';
+
+    const choicesTitle = document.createElement('div');
+    choicesTitle.textContent = "選択肢設定";
+    choicesTitle.style.fontWeight = 'bold';
+    choicesTitle.style.borderBottom = '1px solid #ccc';
+    choicesTitle.style.paddingBottom = '4px';
+    choicesTitle.style.marginBottom = '12px';
+    choicesRow.appendChild(choicesTitle);
+
+    // Prepare options
     const allOpts = targetSeg.options || [];
     const correctVal = targetSeg.correctAnswer || "";
-    let distractors = correctVal ? allOpts.filter(o => o !== correctVal) : [...allOpts];
+    let distractors = [];
+    if (correctVal) {
+        distractors = allOpts.filter(o => o !== correctVal);
+    } else {
+        distractors = [...allOpts];
+    }
 
-    rowChoices.innerHTML = `<div style="margin-bottom:8px; font-weight:bold; border-bottom:1px solid #ccc; padding-bottom:4px;">選択肢設定</div>`;
+    // Choice 1 (Correct)
+    const cDiv = document.createElement('div');
+    cDiv.style.marginBottom = '12px';
+    cDiv.innerHTML = `<div style="font-weight:bold; font-size:0.85rem; color:#15803d; margin-bottom:4px;">選択肢①(正解):</div>`;
+    const cInput = document.createElement('input');
+    cInput.className = "fixed-choice-correct";
+    cInput.value = correctVal;
+    cInput.placeholder = "正しい言葉を入力";
+    cInput.style.width = '100%';
+    cInput.style.padding = '8px';
+    cInput.style.border = '2px solid #bef264';
+    cInput.style.borderRadius = '4px';
+    cDiv.appendChild(cInput);
+    choicesRow.appendChild(cDiv);
 
-    // Correct
-    rowChoices.innerHTML += `<div style="margin-bottom:4px; font-weight:bold; font-size:0.85rem; color:#15803d;">選択肢①(正解):</div>`;
-    const inC = document.createElement('input');
-    inC.className = "fixed-choice-correct";
-    inC.style.width = "100%";
-    inC.style.border = "2px solid #bef264";
-    inC.value = correctVal;
-    inC.placeholder = "正しい言葉を入力";
-    rowChoices.appendChild(inC);
+    // Choice 2 (Distractor 1)
+    const d1Div = document.createElement('div');
+    d1Div.style.marginBottom = '12px';
+    d1Div.innerHTML = `<div style="font-size:0.85rem; margin-bottom:4px;">選択肢②:</div>`;
+    const d1Input = document.createElement('input');
+    d1Input.className = "fixed-choice-dist1";
+    d1Input.value = distractors[0] || "";
+    d1Input.placeholder = "ダミー1";
+    d1Input.style.width = '100%';
+    d1Input.style.padding = '8px';
+    d1Input.style.border = '1px solid #ccc';
+    d1Input.style.borderRadius = '4px';
+    d1Div.appendChild(d1Input);
+    choicesRow.appendChild(d1Div);
 
-    // Distractor 1
-    rowChoices.innerHTML += `<div style="margin-top:8px; margin-bottom:4px; font-size:0.85rem;">選択肢②:</div>`;
-    const inD1 = document.createElement('input');
-    inD1.className = "fixed-choice-dist1";
-    inD1.style.width = "100%";
-    inD1.value = distractors[0] || "";
-    inD1.placeholder = "ダミー1";
-    rowChoices.appendChild(inD1);
+    // Choice 3 (Distractor 2)
+    const d2Div = document.createElement('div');
+    d2Div.style.marginBottom = '4px';
+    d2Div.innerHTML = `<div style="font-size:0.85rem; margin-bottom:4px;">選択肢③:</div>`;
+    const d2Input = document.createElement('input');
+    d2Input.className = "fixed-choice-dist2";
+    d2Input.value = distractors[1] || "";
+    d2Input.placeholder = "ダミー2";
+    d2Input.style.width = '100%';
+    d2Input.style.padding = '8px';
+    d2Input.style.border = '1px solid #ccc';
+    d2Input.style.borderRadius = '4px';
+    d2Div.appendChild(d2Input);
+    choicesRow.appendChild(d2Div);
 
-    // Distractor 2
-    rowChoices.innerHTML += `<div style="margin-top:4px; margin-bottom:4px; font-size:0.85rem;">選択肢③:</div>`;
-    const inD2 = document.createElement('input');
-    inD2.className = "fixed-choice-dist2";
-    inD2.style.width = "100%";
-    inD2.value = distractors[1] || "";
-    inD2.placeholder = "ダミー2";
-    rowChoices.appendChild(inD2);
-
-    list.appendChild(rowChoices);
+    list.appendChild(choicesRow);
 
     if (addSegmentBtn) addSegmentBtn.style.display = 'none';
 }
