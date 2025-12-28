@@ -931,6 +931,9 @@ if (addSegmentBtn) addSegmentBtn.onclick = () => {
 };
 
 if (addQuestionBtn) addQuestionBtn.onclick = () => {
+    // Switch to editor screen if not already
+    showScreen('editor');
+
     editingIndex = -1;
     editorForm.classList.remove('hidden');
     editId.value = `New-${Date.now()}`;
@@ -944,6 +947,11 @@ if (addQuestionBtn) addQuestionBtn.onclick = () => {
 };
 
 function openEditor(idx) {
+    // Ensure we are on the editor screen
+    showScreen('editor');
+    // Ensure list is populated behind the form (for context)
+    renderQuestionList();
+
     editingIndex = idx;
     const q = questionsData[idx];
     editorForm.classList.remove('hidden');
