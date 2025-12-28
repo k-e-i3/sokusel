@@ -759,15 +759,117 @@ function renderQuestionList() {
     });
 }
 
+// Visual Editor Helpers
+function renderSegmentEditor(segments) {
+    const list = document.getElementById('segment-list');
+    if (!list) return;
+    list.innerHTML = '';
+    segments.forEach((seg, index) => addSegmentRow(seg));
+}
+
+function addSegmentRow(seg = { text: "", type: "static" }) {
+    const list = document.getElementById('segment-list');
+    const row = document.createElement('div');
+    row.className = 'segment-row' + (seg.type === 'interactive' ? ' interactive' : '');
+
+    // Type Select
+    const typeSel = document.createElement('select');
+    typeSel.className = 'segment-type-select';
+    typeSel.innerHTML = `<option value="static">文</option><option value="interactive">訂正箇所</option>`;
+    typeSel.value = seg.type;
+    typeSel.onchange = () => {
+        seg.type = typeSel.value;
+        const currentSegs = getSegmentsFromEditor();
+        const parent = row.parentNode;
+        const idx = Array.from(parent.children).indexOf(row);
+        currentSegs[idx].type = typeSel.value;
+        renderSegmentEditor(currentSegs);
+    };
+
+    // Text Input
+    const textIn = document.createElement('input');
+    textIn.type = "text";
+    textIn.className = "text-input";
+    textIn.value = seg.text;
+    textIn.placeholder = "表示テキスト";
+    textIn.style.width = "100%";
+
+    // Delete Button
+    const delBtn = document.createElement('button');
+    delBtn.className = "del-seg-btn";
+    delBtn.innerText = "×";
+    delBtn.onclick = () => {
+        row.remove();
+    };
+
+    row.appendChild(typeSel);
+    row.appendChild(textIn);
+    row.appendChild(delBtn);
+
+    if (seg.type === 'interactive') {
+        const details = document.createElement('div');
+        details.className = "segment-detail";
+
+        // Correct Answer
+        details.innerHTML += `<label style="font-size:0.75rem;">正解 (訂正後):</label>`;
+        const correctIn = document.createElement('input');
+        correctIn.className = "correct-input";
+        correctIn.value = seg.correctAnswer || seg.text;
+        correctIn.placeholder = "正しい文言";
+        details.appendChild(correctIn);
+
+        // Options
+        const opts = (seg.options || []).join(',');
+        details.innerHTML += `<label style="font-size:0.75rem;">選択肢 (カンマ区切り):</label>`;
+        const optsIn = document.createElement('input');
+        optsIn.className = "options-input";
+        optsIn.value = opts;
+        optsIn.placeholder = "例: 誤り,正しい,その他";
+        details.appendChild(optsIn);
+
+        row.appendChild(details);
+    }
+
+    list.appendChild(row);
+}
+
+function getSegmentsFromEditor() {
+    const list = document.getElementById('segment-list');
+    const rows = list.querySelectorAll('.segment-row');
+    const segments = [];
+
+    rows.forEach(row => {
+        const type = row.querySelector('.segment-type-select').value;
+        const text = row.querySelector('.text-input').value;
+
+        if (type === 'static') {
+            segments.push({ text, type });
+        } else {
+            const detail = row.querySelector('.segment-detail');
+            const correctAnswer = detail.querySelector('.correct-input').value;
+            const optionsStr = detail.querySelector('.options-input').value;
+            const options = optionsStr.split(',').map(s => s.trim()).filter(s => s);
+
+            segments.push({ text, type, correctAnswer, options });
+        }
+    });
+    return segments;
+}
+
+const addSegmentBtn = document.getElementById('add-segment-btn');
+if (addSegmentBtn) addSegmentBtn.onclick = () => {
+    addSegmentRow({ text: "新規", type: "static" });
+};
+
 if (addQuestionBtn) addQuestionBtn.onclick = () => {
     editingIndex = -1;
     editorForm.classList.remove('hidden');
     editId.value = `New-${Date.now()}`;
     editGenre.value = "測量法";
-    editSegments.value = JSON.stringify([
+    renderSegmentEditor([
         { text: "新しい", type: "static" },
         { text: "問題", type: "static" }
-    ], null, 2);
+    ]);
     editExplanation.value = "";
     editorForm.scrollIntoView({ behavior: 'smooth' });
 };
@@ -778,18 +880,19 @@ function openEditor(idx) {
     editorForm.classList.remove('hidden');
     editId.value = q.id;
     editGenre.value = q.genre;
-    editSegments.value = JSON.stringify(q.segments, null, 2);
+    renderSegmentEditor(q.segments || []);
     editExplanation.value = q.explanation;
     editorForm.scrollIntoView({ behavior: 'smooth' });
 }
 
 if (editSaveBtn) editSaveBtn.onclick = () => {
     try {
+        const segs = getSegmentsFromEditor();
         const newQ = {
             id: editId.value,
             genre: editGenre.value,
             instruction: "誤っている箇所を訂正しなさい。",
-            segments: JSON.parse(editSegments.value),
+            segments: segs,
             explanation: editExplanation.value
         };
 
@@ -807,7 +910,7 @@ if (editSaveBtn) editSaveBtn.onclick = () => {
             driveClient.saveData('questions.json', questionsData);
         }
     } catch (e) {
-        alert("JSON形式に誤りがあります:\n" + e.message);
+        alert("保存エラー:\n" + e.message);
     }
 };
 
