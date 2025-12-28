@@ -868,6 +868,19 @@ function addSegmentRow(seg = { text: "", type: "static" }) {
     };
     updatePlaceholder();
 
+    // UX Improvements: Auto-fill Correct when Text changes (if empty)
+    textIn.onblur = () => {
+        if (seg.type === 'interactive') {
+            const correctIn = row.querySelector('.correct-input');
+            if (correctIn && correctIn.value.trim() === "") {
+                correctIn.value = textIn.value;
+                // Add a small visual cue?
+                correctIn.classList.add("flash-highlight");
+                setTimeout(() => correctIn.classList.remove("flash-highlight"), 500);
+            }
+        }
+    };
+
     typeSel.onchange = () => {
         seg.type = typeSel.value;
         const currentSegs = getSegmentsFromEditor();
