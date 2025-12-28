@@ -10,7 +10,11 @@ class DriveClient {
         this.tokenClient = null;
         this.folderId = null;
         this.fileId = null;
-        this.onStatusChange = onStatusChange || console.log;
+        this.onStatusChange = onStatusChange || ((msg) => {
+            console.log(msg);
+            const statusEl = document.getElementById('sync-status');
+            if (statusEl) statusEl.textContent = msg;
+        });
     }
 
     async init() {
@@ -118,7 +122,7 @@ class DriveClient {
                 updateStatsUI();
             }
 
-            this.onStatusChange("同期完了: 準備OK");
+            this.onStatusChange(`✅ データ同期完了 (${new Date().toLocaleTimeString()})\n問題数:${questionsData.length}問 / 完了:${statistics.totalAnswers}問`);
 
         } catch (e) {
             console.error("Drive resource init error", e);
@@ -145,17 +149,27 @@ class DriveClient {
     async loadData(fileName) {
         if (!this.folderId || !this.accessToken) return null;
         try {
-            // Find file ID again to be sure (or cache it)
+            // Find file ID
             const qFile = `name='${fileName}' and '${this.folderId}' in parents and trashed=false`;
+            // Add cache-busting to the query itself? No, drive list API is dynamic.
+            // But we can add headers to ensuring we get fresh metadata.
             const resFile = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qFile)}`, {
-                headers: { Authorization: `Bearer ${this.accessToken}` }
+                headers: {
+                    Authorization: `Bearer ${this.accessToken}`,
+                    'Cache-Control': 'no-cache'
+                }
             });
             const dataFile = await resFile.json();
 
             if (dataFile.files?.length > 0) {
                 const fileId = dataFile.files[0].id;
-                const contentRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
-                    headers: { Authorization: `Bearer ${this.accessToken}` }
+                // Add timestamp to query to prevent browser caching of the content
+                const ts = Date.now();
+                const contentRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&t=${ts}`, {
+                    headers: {
+                        Authorization: `Bearer ${this.accessToken}`,
+                        'Cache-Control': 'no-cache'
+                    }
                 });
                 return await contentRes.json();
             }
