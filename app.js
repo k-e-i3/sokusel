@@ -958,42 +958,156 @@ function addSegmentRow(seg = { text: "", type: "static" }) {
     list.appendChild(row);
 }
 
+// Editor V7 Fixed Layout Logic
+function renderSegmentEditor(segments) {
+    const list = document.getElementById('segment-list');
+    if (!list) return;
+    list.innerHTML = '';
+
+    // V7 Enforce Fixed Structure:
+    // [Static (Prefix)] + [Interactive (Target)] + [Static (Suffix)]
+
+    // Heuristic Mappers:
+    let prefix = "";
+    let targetSeg = { text: "", correctAnswer: "", options: [] };
+    let suffix = "";
+
+    const interactIdx = segments.findIndex(s => s.type === 'interactive');
+    if (interactIdx !== -1) {
+        targetSeg = segments[interactIdx];
+        prefix = segments.slice(0, interactIdx).map(s => s.text).join("");
+        suffix = segments.slice(interactIdx + 1).map(s => s.text).join("");
+    } else {
+        // Assume all static are prefix
+        prefix = segments.map(s => s.text).join("");
+    }
+
+    // -- Part 1: Prefix --
+    const row1 = document.createElement('div');
+    row1.className = 'segment-row';
+    row1.innerHTML = `<label style="display:block; font-weight:bold; margin-bottom:4px; font-size:0.9rem;">問題文①：前半部分 (文頭・前置き)</label>`;
+    const input1 = document.createElement('input');
+    input1.className = "text-input fixed-prefix";
+    input1.value = prefix;
+    input1.placeholder = "例：基本測量の測量成果を";
+    input1.style.width = "100%";
+    row1.appendChild(input1);
+    list.appendChild(row1);
+
+    // -- Part 2: Target (Interactive) --
+    const row2 = document.createElement('div');
+    row2.className = 'segment-row interactive';
+    row2.innerHTML = `<label style="display:block; font-weight:bold; margin-bottom:4px; font-size:0.9rem;">問題文②：訂正箇所 (ボタンになる部分)</label>`;
+    const input2 = document.createElement('input');
+    input2.className = "text-input fixed-target";
+    input2.value = targetSeg.text;
+    input2.placeholder = "例：国土地理院の長の承認";
+    input2.style.width = "100%";
+    input2.style.backgroundColor = "#eff6ff";
+    input2.style.borderColor = "#3b82f6";
+    row2.appendChild(input2);
+    list.appendChild(row2);
+
+    // -- Part 3: Suffix --
+    const row3 = document.createElement('div');
+    row3.className = 'segment-row';
+    row3.innerHTML = `<label style="display:block; font-weight:bold; margin-bottom:4px; font-size:0.9rem;">問題文③：後半部分 (文末・締め)</label>`;
+    const input3 = document.createElement('input');
+    input3.className = "text-input fixed-suffix";
+    input3.value = suffix;
+    input3.placeholder = "例：を得なければならない。";
+    input3.style.width = "100%";
+    row3.appendChild(input3);
+    list.appendChild(row3);
+
+    // -- Choices --
+    const rowChoices = document.createElement('div');
+    rowChoices.className = 'segment-row';
+    rowChoices.style.backgroundColor = "#f0fdf4";
+
+    const allOpts = targetSeg.options || [];
+    const correctVal = targetSeg.correctAnswer || "";
+    let distractors = correctVal ? allOpts.filter(o => o !== correctVal) : [...allOpts];
+
+    rowChoices.innerHTML = `<div style="margin-bottom:8px; font-weight:bold; border-bottom:1px solid #ccc; padding-bottom:4px;">選択肢設定</div>`;
+
+    // Correct
+    rowChoices.innerHTML += `<div style="margin-bottom:4px; font-weight:bold; font-size:0.85rem; color:#15803d;">選択肢①(正解):</div>`;
+    const inC = document.createElement('input');
+    inC.className = "fixed-choice-correct";
+    inC.style.width = "100%";
+    inC.style.border = "2px solid #bef264";
+    inC.value = correctVal;
+    inC.placeholder = "正しい言葉を入力";
+    rowChoices.appendChild(inC);
+
+    // Distractor 1
+    rowChoices.innerHTML += `<div style="margin-top:8px; margin-bottom:4px; font-size:0.85rem;">選択肢②:</div>`;
+    const inD1 = document.createElement('input');
+    inD1.className = "fixed-choice-dist1";
+    inD1.style.width = "100%";
+    inD1.value = distractors[0] || "";
+    inD1.placeholder = "ダミー1";
+    rowChoices.appendChild(inD1);
+
+    // Distractor 2
+    rowChoices.innerHTML += `<div style="margin-top:4px; margin-bottom:4px; font-size:0.85rem;">選択肢③:</div>`;
+    const inD2 = document.createElement('input');
+    inD2.className = "fixed-choice-dist2";
+    inD2.style.width = "100%";
+    inD2.value = distractors[1] || "";
+    inD2.placeholder = "ダミー2";
+    rowChoices.appendChild(inD2);
+
+    list.appendChild(rowChoices);
+
+    if (addSegmentBtn) addSegmentBtn.style.display = 'none';
+}
+
+function addSegmentRow(seg) {
+    // Stub
+}
+
 function getSegmentsFromEditor() {
     const list = document.getElementById('segment-list');
-    const rows = list.querySelectorAll('.segment-row');
     const segments = [];
 
-    rows.forEach(row => {
-        const type = row.querySelector('.segment-type-select').value;
-        const text = row.querySelector('.text-input').value;
+    // V7: Read 3 parts
+    const prefixInput = list.querySelector('.fixed-prefix');
+    const targetInput = list.querySelector('.fixed-target');
+    const suffixInput = list.querySelector('.fixed-suffix');
 
-        if (type === 'static') {
-            segments.push({ text, type });
-        } else {
-            // Collect Options V5
-            const detail = row.querySelector('.segment-detail');
+    // Part 1: Prefix
+    if (prefixInput && prefixInput.value) {
+        segments.push({ type: 'static', text: prefixInput.value });
+    }
 
-            const correctIn = detail.querySelector('.correct-input-fixed');
-            const distInputs = detail.querySelectorAll('.distractor-input');
+    // Part 2: Target + Choices
+    if (targetInput) {
+        const text = targetInput.value;
+        const correctIn = list.querySelector('.fixed-choice-correct');
+        const dist1In = list.querySelector('.fixed-choice-dist1');
+        const dist2In = list.querySelector('.fixed-choice-dist2');
 
-            const correctAnswer = correctIn ? correctIn.value.trim() : "";
-            const options = [];
+        const correctAnswer = correctIn ? correctIn.value.trim() : "";
+        const options = [];
+        if (correctAnswer) options.push(correctAnswer);
+        if (dist1In && dist1In.value.trim()) options.push(dist1In.value.trim());
+        if (dist2In && dist2In.value.trim()) options.push(dist2In.value.trim());
 
-            // Add Correct Answer first
-            if (correctAnswer) options.push(correctAnswer);
+        segments.push({
+            type: 'interactive',
+            text: text,
+            correctAnswer: correctAnswer,
+            options: options
+        });
+    }
 
-            // Add Distractors
-            distInputs.forEach(inp => {
-                const val = inp.value.trim();
-                if (val) options.push(val);
-            });
+    // Part 3: Suffix
+    if (suffixInput && suffixInput.value) {
+        segments.push({ type: 'static', text: suffixInput.value });
+    }
 
-            // If checking fails (e.g. checked empty option), or nothing checked.
-            // Validation handles that.
-
-            segments.push({ text, type, correctAnswer, options });
-        }
-    });
     return segments;
 }
 
