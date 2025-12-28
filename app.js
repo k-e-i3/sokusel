@@ -147,12 +147,16 @@ class DriveClient {
     }
 
     async loadData(fileName) {
-        if (!this.folderId || !this.accessToken) return null;
+        if (!this.folderId || !this.accessToken) {
+            // If we are stuck waiting for auth, let user know
+            if (!this.accessToken) {
+                this.onStatusChange("⚠️ ログイン待機中... (Gボタンを押してください)");
+            }
+            return null;
+        }
         try {
             // Find file ID
             const qFile = `name='${fileName}' and '${this.folderId}' in parents and trashed=false`;
-            // Add cache-busting to the query itself? No, drive list API is dynamic.
-            // But we can add headers to ensuring we get fresh metadata.
             const resFile = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qFile)}`, {
                 headers: {
                     Authorization: `Bearer ${this.accessToken}`,
@@ -176,6 +180,7 @@ class DriveClient {
             return null;
         } catch (e) {
             console.error(`Load error ${fileName}`, e);
+            this.onStatusChange("❌ 読み込みエラー: " + e.message);
             return null;
         }
     }
