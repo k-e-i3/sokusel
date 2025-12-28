@@ -1014,6 +1014,26 @@ function openEditor(idx) {
 if (editSaveBtn) editSaveBtn.onclick = () => {
     try {
         const segs = getSegmentsFromEditor();
+
+        // VALIDATION: Check for Common Issues
+        let hasError = false;
+        segs.forEach((s, idx) => {
+            if (s.type === 'interactive') {
+                if (!s.correctAnswer || s.correctAnswer.trim() === "") {
+                    alert(`エラー: セグメント ${idx + 1} の「正解」が空欄です。\n（ボタンにする場合は正解が必須です）`);
+                    hasError = true;
+                } else if (s.correctAnswer === s.text) {
+                    // Warn but allow? No, if strictly equal, it's not a correction.
+                    // But maybe user wants "No Error" type question? 
+                    // For now, warn.
+                    if (!confirm(`警告: セグメント ${idx + 1} の「正解」と「問題文」が同じです。\nこれでは訂正になりません。\nこのまま保存しますか？`)) {
+                        hasError = true;
+                    }
+                }
+            }
+        });
+        if (hasError) return;
+
         const newQ = {
             id: editId.value,
             genre: editGenre.value,
