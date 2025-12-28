@@ -958,8 +958,8 @@ function addSegmentRow(seg = { text: "", type: "static" }) {
     list.appendChild(row);
 }
 
-// Editor V8 Fixed Layout Logic (Safe DOM)
-function renderSegmentEditor(segments) {
+// Editor V8 Fixed Layout Logic (Safe DOM) - DEPRECATED
+function renderSegmentEditor_OLD(segments) {
     const list = document.getElementById('segment-list');
     if (!list) return;
     list.innerHTML = '';
@@ -1312,3 +1312,151 @@ if (startEditorBtn) startEditorBtn.onclick = () => { renderQuestionList(); showS
 
 const editorAuthBtn = document.getElementById('editor-auth-btn');
 if (editorAuthBtn) editorAuthBtn.onclick = () => driveClient.login();
+
+// Editor V9 Fixed Layout Logic (Clean Block Layout)
+function renderSegmentEditor(segments) {
+    const list = document.getElementById('segment-list');
+    if (!list) return;
+    list.innerHTML = '';
+
+    // Heuristic Mappers:
+    let prefix = "";
+    let targetSeg = { text: "", correctAnswer: "", options: [] };
+    let suffix = "";
+
+    // Attempt to map based on V7 structure
+    const interactIdx = segments.findIndex(s => s.type === 'interactive');
+    if (interactIdx !== -1) {
+        targetSeg = segments[interactIdx];
+        prefix = segments.slice(0, interactIdx).map(s => s.text).join("");
+        suffix = segments.slice(interactIdx + 1).map(s => s.text).join("");
+    } else {
+        prefix = segments.map(s => s.text).join("");
+    }
+
+    // Helper for creating labelled rows with strict layout
+    const createRow = (labelText, inputClass, value, placeholder, styles = {}) => {
+        const row = document.createElement('div');
+        // Force block layout and spacing
+        row.style.display = 'block';
+        row.style.marginBottom = '15px';
+        if (styles.rowClass) row.className = styles.rowClass;
+
+        const label = document.createElement('div'); // div instead of label
+        label.style.display = 'block';
+        label.style.fontWeight = 'bold';
+        label.style.marginBottom = '6px';
+        label.style.fontSize = '0.95rem';
+        label.style.color = styles.labelColor || '#334155';
+        label.textContent = labelText;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = inputClass;
+        input.value = value || "";
+        input.placeholder = placeholder;
+
+        // Force strict box model
+        input.style.display = 'block';
+        input.style.width = '100%';
+        input.style.boxSizing = 'border-box'; // Critical for padding
+        input.style.padding = '10px';
+        input.style.fontSize = '1rem';
+        input.style.border = '1px solid #cbd5e1';
+        input.style.borderRadius = '6px';
+        input.style.outline = 'none';
+
+        if (styles.bg) input.style.backgroundColor = styles.bg;
+        if (styles.borderColor) input.style.borderColor = styles.borderColor;
+        if (styles.borderWidth) input.style.borderWidth = styles.borderWidth;
+
+        row.appendChild(label);
+        row.appendChild(input);
+        return row;
+    };
+
+    // 1. Prefix
+    list.appendChild(createRow(
+        "① 問題文：前半部分 (固定テキスト)",
+        "text-input fixed-prefix",
+        prefix,
+        "例：基本測量の測量成果を"
+    ));
+
+    // 2. Target
+    list.appendChild(createRow(
+        "② 問題文：訂正箇所 (ボタンになる部分)",
+        "text-input fixed-target",
+        targetSeg.text,
+        "例：国土地理院の長の承認",
+        { rowClass: 'interactive', bg: '#eff6ff', borderColor: '#3b82f6', labelColor: '#1d4ed8' }
+    ));
+
+    // 3. Suffix
+    list.appendChild(createRow(
+        "③ 問題文：後半部分 (固定テキスト)",
+        "text-input fixed-suffix",
+        suffix,
+        "例：を得なければならない。"
+    ));
+
+    // 4. Choices Container
+    const choicesRow = document.createElement('div');
+    choicesRow.style.display = 'block';
+    choicesRow.style.backgroundColor = '#f0fdf4';
+    choicesRow.style.padding = '15px';
+    choicesRow.style.marginTop = '20px';
+    choicesRow.style.border = '1px solid #bbf7d0';
+    choicesRow.style.borderRadius = '8px';
+
+    const choicesTitle = document.createElement('div');
+    choicesTitle.textContent = "▼ 選択肢設定";
+    choicesTitle.style.fontWeight = 'bold';
+    choicesTitle.style.fontSize = '1rem';
+    choicesTitle.style.color = '#15803d';
+    choicesTitle.style.borderBottom = '2px solid #bbf7d0';
+    choicesTitle.style.paddingBottom = '8px';
+    choicesTitle.style.marginBottom = '15px';
+    choicesRow.appendChild(choicesTitle);
+
+    // Prepare options
+    const allOpts = targetSeg.options || [];
+    const correctVal = targetSeg.correctAnswer || "";
+    let distractors = [];
+    if (correctVal) {
+        distractors = allOpts.filter(o => o !== correctVal);
+    } else {
+        distractors = [...allOpts];
+    }
+
+    // Choice 1 (Correct)
+    const cRow = createRow(
+        "選択肢① (正解)",
+        "fixed-choice-correct",
+        correctVal,
+        "正しい言葉を入力",
+        { labelColor: '#15803d', borderColor: '#86efac', borderWidth: '2px', bg: '#ffffff' }
+    );
+    cRow.querySelector('input').style.backgroundColor = '#f0fdf4';
+    choicesRow.appendChild(cRow);
+
+    // Choice 2 (Distractor 1)
+    choicesRow.appendChild(createRow(
+        "選択肢② (ダミー)",
+        "fixed-choice-dist1",
+        distractors[0] || "",
+        "ダミー選択肢1"
+    ));
+
+    // Choice 3 (Distractor 2)
+    choicesRow.appendChild(createRow(
+        "選択肢③ (ダミー)",
+        "fixed-choice-dist2",
+        distractors[1] || "",
+        "ダミー選択肢2"
+    ));
+
+    list.appendChild(choicesRow);
+
+    if (addSegmentBtn) addSegmentBtn.style.display = 'none';
+}
