@@ -105,10 +105,12 @@ class DriveClient {
             await this.checkFile(DATA_FILE_NAME, window.questions || []);
 
             // Explicitly LOAD the data from Drive to be the source of truth
-            const remoteQuestions = await this.loadData(DATA_FILE_NAME);
-            if (remoteQuestions && Array.isArray(remoteQuestions)) {
-                questionsData = remoteQuestions;
-                console.log("Loaded questions from Drive:", questionsData.length);
+            let qModifiedTime = '';
+            const remoteQResult = await this.loadData(DATA_FILE_NAME);
+            if (remoteQResult && remoteQResult.data && Array.isArray(remoteQResult.data)) {
+                questionsData = remoteQResult.data;
+                qModifiedTime = remoteQResult.modifiedTime ? new Date(remoteQResult.modifiedTime).toLocaleString('ja-JP') : '';
+                console.log("Loaded questions from Drive:", questionsData.length, "Modified:", qModifiedTime);
                 renderQuestionList(); // Update UI immediately
             }
 
@@ -118,14 +120,16 @@ class DriveClient {
             await this.checkFile('stats.json', defaultStats);
 
             // Explicitly LOAD stats
-            const remoteStats = await this.loadData('stats.json');
-            if (remoteStats) {
-                statistics = remoteStats;
+            let sModifiedTime = '';
+            const remoteStatsResult = await this.loadData('stats.json');
+            if (remoteStatsResult && remoteStatsResult.data) {
+                statistics = remoteStatsResult.data;
+                sModifiedTime = remoteStatsResult.modifiedTime ? new Date(remoteStatsResult.modifiedTime).toLocaleString('ja-JP') : '';
                 localStorage.setItem('sokusel_stats', JSON.stringify(statistics)); // Sync to local for offline backup
                 updateStatsUI();
             }
 
-            this.onStatusChange(`✅ データ同期完了 (${new Date().toLocaleTimeString()})\n問題数:${questionsData.length}問 / 完了:${statistics.totalAnswers}問`);
+            this.onStatusChange(`✅ 同期完了\n問題: ${questionsData.length}問 (${qModifiedTime})\n成績: ${statistics.totalAnswers}回 (${sModifiedTime})`);
 
         } catch (e) {
             console.error("Drive resource init error", e);
@@ -160,7 +164,7 @@ class DriveClient {
         try {
             // Find file ID
             const qFile = `name='${fileName}' and '${this.folderId}' in parents and trashed=false`;
-            const resFile = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qFile)}`, {
+            const resFile = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qFile)}&fields=files(id,modifiedTime)`, {
                 headers: {
                     Authorization: `Bearer ${this.accessToken}`,
                     'Cache-Control': 'no-cache'
@@ -170,6 +174,7 @@ class DriveClient {
 
             if (dataFile.files?.length > 0) {
                 const fileId = dataFile.files[0].id;
+                const modifiedTime = dataFile.files[0].modifiedTime; // ISO timestamp
                 // Add timestamp to query to prevent browser caching of the content
                 const ts = Date.now();
                 const contentRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&t=${ts}`, {
@@ -178,7 +183,9 @@ class DriveClient {
                         'Cache-Control': 'no-cache'
                     }
                 });
-                return await contentRes.json();
+                const content = await contentRes.json();
+                // Return both content and metadata
+                return { data: content, modifiedTime: modifiedTime };
             }
             return null;
         } catch (e) {
@@ -1388,19 +1395,25 @@ if (syncLoadBtn) syncLoadBtn.onclick = async () => {
     }
     driveClient.onStatusChange("📥 データ読込中...");
     try {
-        const remoteQ = await driveClient.loadData('questions.json');
-        if (remoteQ && Array.isArray(remoteQ)) {
-            questionsData = remoteQ;
+        let qModifiedTime = '', sModifiedTime = '';
+
+        const remoteQResult = await driveClient.loadData('questions.json');
+        if (remoteQResult && remoteQResult.data && Array.isArray(remoteQResult.data)) {
+            questionsData = remoteQResult.data;
+            qModifiedTime = remoteQResult.modifiedTime ? new Date(remoteQResult.modifiedTime).toLocaleString('ja-JP') : '不明';
             renderQuestionList();
         }
-        const remoteS = await driveClient.loadData('stats.json');
-        if (remoteS) {
-            statistics = remoteS;
+
+        const remoteSResult = await driveClient.loadData('stats.json');
+        if (remoteSResult && remoteSResult.data) {
+            statistics = remoteSResult.data;
+            sModifiedTime = remoteSResult.modifiedTime ? new Date(remoteSResult.modifiedTime).toLocaleString('ja-JP') : '不明';
             localStorage.setItem('sokusel_stats', JSON.stringify(statistics));
             updateStatsUI();
         }
-        driveClient.onStatusChange(`✅ 読込完了 (${new Date().toLocaleTimeString()}) Q:${questionsData.length}問 / 回答:${statistics.totalAnswers}回`);
-        alert(`データを読み込みました！\n問題数: ${questionsData.length}問\n回答記録: ${statistics.totalAnswers}回`);
+
+        driveClient.onStatusChange(`✅ 読込完了\n問題: ${questionsData.length}問 (${qModifiedTime})\n成績: ${statistics.totalAnswers}回 (${sModifiedTime})`);
+        alert(`ドライブからデータを読み込みました！\n\n【問題データ】\n件数: ${questionsData.length}問\n最終更新: ${qModifiedTime}\n\n【成績データ】\n回答数: ${statistics.totalAnswers}回\n最終更新: ${sModifiedTime}`);
     } catch (e) {
         driveClient.onStatusChange("❌ 読込失敗: " + e.message);
         alert("読み込みに失敗しました: " + e.message);
