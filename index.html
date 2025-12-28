@@ -19,18 +19,19 @@
 
 <body>
     <!-- Start Screen Overlay -->
-    <div id="start-screen" class="overlay active" style="background: rgba(15, 23, 42, 0.95);">
-        <div class="start-screen-content" style="padding:1.5rem; max-width:420px;">
-            <h1 class="start-title" style="font-size:1.5rem; margin-bottom:0.5rem;">SokuSelect<br><span
-                    style="font-size:0.5em; font-weight:500; opacity:0.8;">測量士 文章訂正ドリル</span></h1>
-            <div style="text-align:center; font-size:0.65rem; color:#64748b; margin-bottom:4px;">Build: 2024-12-29 08:13
+    <div id="start-screen" class="overlay active" style="background: rgba(47, 79, 79, 0.95);">
+        <div class="start-screen-content" style="padding:1rem; max-width:400px;">
+            <h1 class="start-title" style="font-size:1.4rem; margin-bottom:0.2rem;">SokuSelect<br><span
+                    style="font-size:0.5em; font-weight:500; opacity:0.9;">測量士 文章訂正ドリル</span></h1>
+            <div style="text-align:center; font-size:0.6rem; color:#94a3b8; margin-bottom:2px;">Build: 2024-12-29 08:24
             </div>
+            <div id="login-status" style="text-align:center; font-size:0.65rem; margin-bottom:2px;"><span
+                    style="color:#fbbf24;">⚪ 未ログイン</span></div>
             <div id="sync-status"
-                style="text-align:center; font-size:0.7rem; color:#94a3b8; margin-bottom:4px; min-height:1em;"></div>
+                style="text-align:center; font-size:0.65rem; color:#94a3b8; margin-bottom:2px; min-height:1em;"></div>
             <div id="file-timestamps"
-                style="text-align:center; font-size:0.65rem; color:#64748b; margin-bottom:8px; line-height:1.4; display:none;">
-                <div>📚 問題: <span id="q-file-time">--</span></div>
-                <div>📊 成績: <span id="s-file-time">--</span></div>
+                style="text-align:center; font-size:0.6rem; color:#94a3b8; margin-bottom:6px; line-height:1.3; display:none;">
+                <span>📚 <span id="q-file-time">--</span></span> ｜ <span>📊 <span id="s-file-time">--</span></span>
             </div>
 
             <div style="display:flex; justify-content:center; gap:8px; margin-bottom:12px;">

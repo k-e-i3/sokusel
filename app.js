@@ -67,13 +67,26 @@ class DriveClient {
         }
     }
 
+    updateLoginStatus(isLoggedIn) {
+        const loginStatusEl = document.getElementById('login-status');
+        if (loginStatusEl) {
+            if (isLoggedIn) {
+                loginStatusEl.innerHTML = '<span style="color:#4ade80;">🟢 ログイン済み</span>';
+            } else {
+                loginStatusEl.innerHTML = '<span style="color:#fbbf24;">⚪ 未ログイン</span>';
+            }
+        }
+    }
+
     handleAuthResponse(r) {
         if (r.error) {
             this.onStatusChange("認証エラー: " + r.error);
+            this.updateLoginStatus(false);
             return;
         }
         this.accessToken = r.access_token;
-        this.onStatusChange("認証成功");
+        this.updateLoginStatus(true);
+        this.onStatusChange("✅ 認証成功 - 同期開始...");
         this.initDriveResources();
     }
 

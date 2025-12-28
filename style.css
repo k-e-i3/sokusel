@@ -1,23 +1,19 @@
 :root {
-    /* "Surveyor Green" - Sophisticated Slate/Moss Green Palette */
+    /* Simplified 2-Green Palette */
     --primary-color: #2f4f4f;
-    /* Dark Slate Gray (Greenish) */
-    --accent-color: #556b2f;
-    /* Dark Olive Green - Stylish but subtle */
-    --accent-light: #8fbc8f;
-    /* Dark Sea Green */
-    --highlight-bg: #e0eee0;
-    --highlight-border: #8fbc8f;
-    --interactive-hover: #f0fff0;
-    /* Honeydew */
-    --success-bg: #f0fdf4;
-    --success-text: #14532d;
-    --error-bg: #fef2f2;
-    --error-text: #991b1b;
-    --bg-color: #eaefef;
-    /* Fashionable Gray-Green Tint */
+    /* Dark Slate Green */
+    --accent-color: #4a7c59;
+    /* Slightly Lighter Green */
+    --highlight-bg: #e8f0e8;
+    /* Very light green tint */
+    --success-bg: #e8f5e9;
+    --success-text: #2f4f4f;
+    --error-bg: #ffebee;
+    --error-text: #b71c1c;
+    --bg-color: #f5f7f5;
+    /* Light greenish white */
     --card-bg: #ffffff;
-    --text-color: #2d3748;
+    --text-color: #2f4f4f;
 }
 
 * {
