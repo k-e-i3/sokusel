@@ -1,4 +1,191 @@
-import { DriveClient } from './js/drive.js';
+// Google Drive Client Logic (Consolidated for local compatibility)
+const CLIENT_ID = '221098146252-psmtjk7chc54n35tpp4jgr3sgbipsemn.apps.googleusercontent.com';
+const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+const FOLDER_NAME = 'sokusel';
+const DATA_FILE_NAME = 'questions.json';
+
+class DriveClient {
+    constructor(onStatusChange) {
+        this.accessToken = null;
+        this.tokenClient = null;
+        this.folderId = null;
+        this.fileId = null;
+        this.onStatusChange = onStatusChange || console.log;
+    }
+
+    async init() {
+        try {
+            await this.waitForGoogleLibs();
+
+            window.gapi.load('client', async () => {
+                try {
+                    await window.gapi.client.init({});
+                    await window.gapi.client.load('drive', 'v3');
+                    this.onStatusChange("Google連携準備完了");
+                } catch (e) { console.error("GAPI Error", e); }
+            });
+
+            this.tokenClient = window.google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID, scope: SCOPES,
+                callback: (resp) => this.handleAuthResponse(resp),
+            });
+
+            this.onStatusChange("準備OK");
+        } catch (err) {
+            console.error("System Init Error:", err);
+            this.onStatusChange("オフライン");
+        }
+    }
+
+    waitForGoogleLibs() {
+        return new Promise((resolve, reject) => {
+            let count = 0;
+            const check = () => {
+                if (window.gapi && window.google && window.google.accounts) {
+                    resolve();
+                } else if (count > 50) {
+                    reject(new Error("Timeout loading libs"));
+                } else {
+                    count++;
+                    setTimeout(check, 200);
+                }
+            };
+            check();
+        });
+    }
+
+    login() {
+        if (this.tokenClient) {
+            this.tokenClient.requestAccessToken();
+        }
+    }
+
+    handleAuthResponse(r) {
+        if (r.error) {
+            this.onStatusChange("認証エラー: " + r.error);
+            return;
+        }
+        this.accessToken = r.access_token;
+        this.onStatusChange("認証成功");
+        this.initDriveResources();
+    }
+
+    async initDriveResources() {
+        try {
+            // 1. Find or Create Folder
+            this.onStatusChange("フォルダを確認中...");
+            const qFolder = `name='${FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+            const resFolder = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qFolder)}`, {
+                headers: { Authorization: `Bearer ${this.accessToken}` }
+            });
+            const dataFolder = await resFolder.json();
+
+            if (dataFolder.files?.length > 0) {
+                this.folderId = dataFolder.files[0].id;
+            } else {
+                this.onStatusChange("フォルダを作成中...");
+                const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: FOLDER_NAME, mimeType: 'application/vnd.google-apps.folder' })
+                });
+                const folder = await createRes.json();
+                this.folderId = folder.id;
+            }
+
+            // 2. Find File (Initial Check for questions.json)
+            await this.checkFile(DATA_FILE_NAME, window.questions || []);
+
+            // Check for stats.json
+            await this.checkFile('stats.json', { totalAnswers: 0, totalCorrect: 0, lastPlayed: '-', genreStats: {} });
+
+        } catch (e) {
+            console.error("Drive resource init error", e);
+            this.onStatusChange("初期化エラー");
+        }
+    }
+
+    async checkFile(fileName, defaultContent) {
+        const qFile = `name='${fileName}' and '${this.folderId}' in parents and trashed=false`;
+        const resFile = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qFile)}`, {
+            headers: { Authorization: `Bearer ${this.accessToken}` }
+        });
+        const dataFile = await resFile.json();
+
+        if (dataFile.files?.length === 0) {
+            this.onStatusChange(`${fileName}を作成中...`);
+            await this.saveData(fileName, defaultContent);
+        } else {
+            // We don't necessarily load everything here, app.js will request what it needs
+            this.onStatusChange(`${fileName}を確認`);
+        }
+    }
+
+    async loadData(fileName) {
+        if (!this.folderId || !this.accessToken) return null;
+        try {
+            // Find file ID again to be sure (or cache it)
+            const qFile = `name='${fileName}' and '${this.folderId}' in parents and trashed=false`;
+            const resFile = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qFile)}`, {
+                headers: { Authorization: `Bearer ${this.accessToken}` }
+            });
+            const dataFile = await resFile.json();
+
+            if (dataFile.files?.length > 0) {
+                const fileId = dataFile.files[0].id;
+                const contentRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+                    headers: { Authorization: `Bearer ${this.accessToken}` }
+                });
+                return await contentRes.json();
+            }
+            return null;
+        } catch (e) {
+            console.error(`Load error ${fileName}`, e);
+            return null;
+        }
+    }
+
+    async saveData(fileName, data) {
+        if (!this.accessToken || !this.folderId) return;
+
+        const content = JSON.stringify(data, null, 2);
+
+        try {
+            this.onStatusChange(`${fileName}を保存中...`);
+
+            // Find file ID
+            const qFile = `name='${fileName}' and '${this.folderId}' in parents and trashed=false`;
+            const resFile = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qFile)}`, {
+                headers: { Authorization: `Bearer ${this.accessToken}` }
+            });
+            const dataFile = await resFile.json();
+
+            if (dataFile.files?.length > 0) {
+                const fileId = dataFile.files[0].id;
+                await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+                    method: 'PATCH',
+                    headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' },
+                    body: content
+                });
+            } else {
+                // Create
+                const metadata = { name: fileName, parents: [this.folderId] };
+                const boundary = '-------314159265358979323846';
+                const body = `--${boundary}\nContent-Type: application/json; charset=UTF-8\n\n${JSON.stringify(metadata)}\n--${boundary}\nContent-Type: application/json\n\n${content}\n--${boundary}--`;
+
+                await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+                    method: 'POST',
+                    headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
+                    body: body
+                });
+            }
+            this.onStatusChange("保存完了");
+        } catch (e) {
+            console.error("Save error", e);
+            this.onStatusChange("保存失敗");
+        }
+    }
+}
 
 // --- Global State ---
 let questionsData = window.questions || []; // Default to local if available
@@ -22,12 +209,18 @@ let sessionGenreScores = {};
 let selectedGenre = 'all';
 let selectedCount = 10;
 
-// Drive Client
+// Drive Client Instance
 const driveClient = new DriveClient(async (status) => {
     const badge = document.getElementById('drive-status');
-    if (badge) badge.textContent = status;
-    if (status.includes("Found stats.json") || status.includes("Auth OK")) {
-        // Trigger load sequence logic if needed, but usually we just load when ready
+    // Also update start screen button text or tooltip if possible, or just console
+    console.log("Drive Status:", status);
+
+    // Using badge in header if exists? No header badge in current HTML?
+    // Wait, header has "G" button that is small. We might not have a text badge visible.
+    // We can alert on major errors? Or just console.
+
+    if (status.includes("Found stats.json") || status.includes("Auth OK") || status.includes("認証成功")) {
+        // Trigger load sequence logic
         if (driveClient.accessToken) {
             await reloadDataFromDrive();
         }
@@ -39,12 +232,12 @@ async function reloadDataFromDrive() {
     const qData = await driveClient.loadData('questions.json');
     if (qData) {
         questionsData = qData;
+        console.log("Questions loaded from Drive");
     }
 
     // Load Stats
     const sData = await driveClient.loadData('stats.json');
     if (sData) {
-        // Merge with local stats or overwrite? Overwrite is safer for sync
         statistics = sData;
         localStorage.setItem('sokusel_stats', JSON.stringify(statistics));
         updateStatsUI();
@@ -55,7 +248,7 @@ async function reloadDataFromDrive() {
 // --- DOM Elements ---
 const screens = {
     start: document.getElementById('start-screen'),
-    game: document.getElementById('game-area'), // Note: game-area acts as a screen section
+    game: document.getElementById('game-area'),
     result: document.getElementById('result-area'),
     editor: document.getElementById('editor-screen'),
     stats: document.getElementById('stats-screen')
@@ -65,7 +258,10 @@ const screens = {
 const genreOptions = document.getElementById('genre-options');
 const countOptions = document.getElementById('count-options');
 const startBtn = document.getElementById('start-btn');
+
+// Old Header Buttons (Might not exist if I removed header controls? No, header is still there)
 const authBtn = document.getElementById('auth-btn');
+// Ensure these variables don't crash if null
 const paramsBtn = document.getElementById('params-btn');
 const editorBtn = document.getElementById('editor-btn');
 
@@ -136,6 +332,7 @@ const charMessages = {
 // --- Initialization ---
 window.addEventListener('load', () => {
     driveClient.init();
+    updateStatsUI();
 });
 
 // --- Navigation ---
@@ -144,9 +341,9 @@ function showScreen(name) {
     Object.values(screens).forEach(el => {
         if (el) {
             el.classList.remove('active');
-            el.classList.add('hidden'); // Ensure hidden helper class is applied
+            el.classList.add('hidden');
             if (name === 'game' && el === screens.game) {
-                el.style.display = 'block'; // Game area uses style.display inline in HTML sometimes
+                el.style.display = 'block';
             }
             if (name !== 'game' && el === screens.game) {
                 el.style.display = 'none';
@@ -160,35 +357,24 @@ function showScreen(name) {
         target.classList.add('active');
     }
 
-    // Special handling for start screen visibility vs game area
     if (name === 'start') {
         screens.start.classList.add('active');
         screens.start.classList.remove('hidden');
         screens.game.style.display = 'none';
-
-        // Reset game state UI
         screens.result.classList.add('hidden');
     }
 }
 
 // --- Event Listeners: Main Menu ---
-authBtn.onclick = () => driveClient.login();
-
-paramsBtn.onclick = () => {
-    updateStatsUI();
-    showScreen('stats');
-};
-
-editorBtn.onclick = () => {
-    renderQuestionList();
-    showScreen('editor');
-};
-
-statsCloseBtn.onclick = () => showScreen('start');
-editorCloseBtn.onclick = () => showScreen('start');
+// Use optional chaining or checks
+if (authBtn) authBtn.onclick = () => driveClient.login();
+if (paramsBtn) paramsBtn.onclick = () => { updateStatsUI(); showScreen('stats'); };
+if (editorBtn) editorBtn.onclick = () => { renderQuestionList(); showScreen('editor'); };
+if (statsCloseBtn) statsCloseBtn.onclick = () => showScreen('start');
+if (editorCloseBtn) editorCloseBtn.onclick = () => showScreen('start');
 
 // --- Game Start Logic ---
-genreOptions.addEventListener('click', (e) => {
+if (genreOptions) genreOptions.addEventListener('click', (e) => {
     if (e.target.classList.contains('genre-card')) {
         document.querySelectorAll('.genre-card').forEach(el => el.classList.remove('selected'));
         e.target.classList.add('selected');
@@ -196,7 +382,7 @@ genreOptions.addEventListener('click', (e) => {
     }
 });
 
-countOptions.addEventListener('click', (e) => {
+if (countOptions) countOptions.addEventListener('click', (e) => {
     if (e.target.classList.contains('count-btn')) {
         document.querySelectorAll('.count-btn').forEach(el => el.classList.remove('selected'));
         e.target.classList.add('selected');
@@ -204,7 +390,7 @@ countOptions.addEventListener('click', (e) => {
     }
 });
 
-startBtn.onclick = () => {
+if (startBtn) startBtn.onclick = () => {
     // Filter Questions
     if (selectedGenre === 'all') {
         filteredQuestions = [...questionsData];
@@ -251,13 +437,15 @@ startBtn.onclick = () => {
 function initQuestion() {
     isChecked = false;
     activeSegmentIndex = null;
-    feedbackBox.classList.remove('visible', 'success', 'error');
-    feedbackBox.classList.add('hidden');
-    selectionModal.classList.add('hidden');
-    checkBtn.classList.remove('hidden');
-    nextBtn.classList.add('hidden');
-    overlay.classList.remove('active');
-    charMsg.parentElement.style.visibility = 'hidden';
+    if (feedbackBox) {
+        feedbackBox.classList.remove('visible', 'success', 'error');
+        feedbackBox.classList.add('hidden');
+    }
+    if (selectionModal) selectionModal.classList.add('hidden');
+    if (checkBtn) checkBtn.classList.remove('hidden');
+    if (nextBtn) nextBtn.classList.add('hidden');
+    if (overlay) overlay.classList.remove('active');
+    if (charMsg && charMsg.parentElement) charMsg.parentElement.style.visibility = 'hidden';
 
     const maxQ = filteredQuestions.length;
     if (currentQIndex >= maxQ) {
@@ -266,14 +454,15 @@ function initQuestion() {
     }
 
     const q = filteredQuestions[currentQIndex];
-    progressDisplay.textContent = `Q${currentQIndex + 1} / ${maxQ}`;
-    instructionText.textContent = q.instruction || "誤っている箇所を訂正しなさい。";
+    if (progressDisplay) progressDisplay.textContent = `Q${currentQIndex + 1} / ${maxQ}`;
+    if (instructionText) instructionText.textContent = q.instruction || "誤っている箇所を訂正しなさい。";
 
     currentSegments = JSON.parse(JSON.stringify(q.segments));
     renderSentence();
 }
 
 function renderSentence() {
+    if (!sentenceArea) return;
     sentenceArea.innerHTML = '';
     currentSegments.forEach((seg, index) => {
         const span = document.createElement('span');
@@ -329,13 +518,13 @@ function selectOption(text) {
 }
 
 function closeModal() {
-    selectionModal.classList.add('hidden');
-    overlay.classList.remove('active');
+    if (selectionModal) selectionModal.classList.add('hidden');
+    if (overlay) overlay.classList.remove('active');
     activeSegmentIndex = null;
 }
-overlay.onclick = closeModal;
+if (overlay) overlay.onclick = closeModal;
 
-checkBtn.onclick = () => {
+if (checkBtn) checkBtn.onclick = () => {
     isChecked = true;
     checkBtn.classList.add('hidden');
     nextBtn.classList.remove('hidden');
@@ -373,7 +562,7 @@ checkBtn.onclick = () => {
     feedbackDesc.textContent = q.explanation;
 };
 
-nextBtn.onclick = () => {
+if (nextBtn) nextBtn.onclick = () => {
     currentQIndex++;
     initQuestion();
 };
@@ -386,7 +575,6 @@ function getRandomMsg(type) {
 function showSummary() {
     screens.game.style.display = 'none';
 
-    // Re-enable result area visibility (it lives outside screens logic slightly in original HTML but let's manage it)
     screens.result.classList.remove('hidden');
 
     const totalQ = filteredQuestions.length;
@@ -420,8 +608,8 @@ function showSummary() {
     });
 }
 
-// Result to Menu
-document.getElementById('retry-btn').onclick = () => showScreen('start');
+const retryBtn = document.getElementById('retry-btn');
+if (retryBtn) retryBtn.onclick = () => showScreen('start');
 
 
 // --- Statistics Logic ---
@@ -439,13 +627,13 @@ function updateStats(genre, isCorrect) {
 
     localStorage.setItem('sokusel_stats', JSON.stringify(statistics));
 
-    // Auto-sync stats to Drive
     if (driveClient.accessToken) {
         driveClient.saveData('stats.json', statistics);
     }
 }
 
 function updateStatsUI() {
+    if (!totalAnswersEl) return;
     totalAnswersEl.textContent = statistics.totalAnswers;
     const rate = statistics.totalAnswers > 0
         ? Math.round((statistics.totalCorrect / statistics.totalAnswers) * 100)
@@ -473,11 +661,7 @@ function updateStatsUI() {
     });
 }
 
-function updateStatsDisplay() {
-    // Background update if needed
-}
-
-resetStatsBtn.onclick = () => {
+if (resetStatsBtn) resetStatsBtn.onclick = () => {
     if (confirm("全ての学習記録をリセットしますか？")) {
         statistics = { totalAnswers: 0, totalCorrect: 0, lastPlayed: '-', genreStats: {} };
         localStorage.removeItem('sokusel_stats');
@@ -488,6 +672,7 @@ resetStatsBtn.onclick = () => {
 
 // --- Editor Logic ---
 function renderQuestionList() {
+    if (!questionList) return;
     questionList.innerHTML = '';
     questionsData.forEach((q, idx) => {
         const div = document.createElement('div');
@@ -498,7 +683,7 @@ function renderQuestionList() {
     });
 }
 
-addQuestionBtn.onclick = () => {
+if (addQuestionBtn) addQuestionBtn.onclick = () => {
     editingIndex = -1;
     editorForm.classList.remove('hidden');
     editId.value = `New-${Date.now()}`;
@@ -522,7 +707,7 @@ function openEditor(idx) {
     editorForm.scrollIntoView({ behavior: 'smooth' });
 }
 
-editSaveBtn.onclick = () => {
+if (editSaveBtn) editSaveBtn.onclick = () => {
     try {
         const newQ = {
             id: editId.value,
@@ -550,11 +735,11 @@ editSaveBtn.onclick = () => {
     }
 };
 
-editCancelBtn.onclick = () => {
+if (editCancelBtn) editCancelBtn.onclick = () => {
     editorForm.classList.add('hidden');
 };
 
-editDeleteBtn.onclick = () => {
+if (editDeleteBtn) editDeleteBtn.onclick = () => {
     if (editingIndex >= 0 && confirm("この問題を削除しますか？")) {
         questionsData.splice(editingIndex, 1);
         editorForm.classList.add('hidden');
@@ -563,7 +748,7 @@ editDeleteBtn.onclick = () => {
     }
 };
 
-saveDriveBtn.onclick = () => {
+if (saveDriveBtn) saveDriveBtn.onclick = () => {
     if (!driveClient.accessToken) {
         alert("先にGoogle認証を行ってください");
         return;
@@ -581,4 +766,3 @@ const startEditorBtn = document.getElementById('editor-btn-start');
 if (startAuthBtn) startAuthBtn.onclick = () => driveClient.login();
 if (startParamsBtn) startParamsBtn.onclick = () => { updateStatsUI(); showScreen('stats'); };
 if (startEditorBtn) startEditorBtn.onclick = () => { renderQuestionList(); showScreen('editor'); };
-
