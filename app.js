@@ -93,15 +93,36 @@ class DriveClient {
                 this.folderId = folder.id;
             }
 
-            // 2. Find File (Initial Check for questions.json)
+            // 2. Questions Data
+            this.onStatusChange("問題データを同期中...");
             await this.checkFile(DATA_FILE_NAME, window.questions || []);
 
-            // Check for stats.json
-            await this.checkFile('stats.json', { totalAnswers: 0, totalCorrect: 0, lastPlayed: '-', genreStats: {} });
+            // Explicitly LOAD the data from Drive to be the source of truth
+            const remoteQuestions = await this.loadData(DATA_FILE_NAME);
+            if (remoteQuestions && Array.isArray(remoteQuestions)) {
+                questionsData = remoteQuestions;
+                console.log("Loaded questions from Drive:", questionsData.length);
+                renderQuestionList(); // Update UI immediately
+            }
+
+            // 3. Statistics Data
+            this.onStatusChange("学習記録を同期中...");
+            const defaultStats = { totalAnswers: 0, totalCorrect: 0, lastPlayed: '-', genreStats: {} };
+            await this.checkFile('stats.json', defaultStats);
+
+            // Explicitly LOAD stats
+            const remoteStats = await this.loadData('stats.json');
+            if (remoteStats) {
+                statistics = remoteStats;
+                localStorage.setItem('sokusel_stats', JSON.stringify(statistics)); // Sync to local for offline backup
+                updateStatsUI();
+            }
+
+            this.onStatusChange("同期完了: 準備OK");
 
         } catch (e) {
             console.error("Drive resource init error", e);
-            this.onStatusChange("初期化エラー");
+            this.onStatusChange("同期エラー: " + e.message);
         }
     }
 
