@@ -1010,9 +1010,10 @@ if (addQuestionBtn) addQuestionBtn.onclick = () => {
     editorForm.classList.remove('hidden');
     editId.value = `New-${Date.now()}`;
     editGenre.value = "測量法";
+    // Initialize with empty V6 structure
     renderSegmentEditor([
-        { text: "新しい", type: "static" },
-        { text: "問題", type: "static" }
+        { text: "", type: "static" },
+        { text: "", type: "interactive", options: [] }
     ]);
     editExplanation.value = "";
     editorForm.scrollIntoView({ behavior: 'smooth' });
@@ -1034,26 +1035,30 @@ function openEditor(idx) {
     editorForm.scrollIntoView({ behavior: 'smooth' });
 }
 
+if (addSegmentBtn) addSegmentBtn.style.display = 'none'; // Ensure hidden
+
 if (editSaveBtn) editSaveBtn.onclick = () => {
     try {
         const segs = getSegmentsFromEditor();
 
-        // VALIDATION: Check for Common Issues
-        let hasError = false;
-        segs.forEach((s, idx) => {
-            if (s.type === 'interactive') {
-                if (!s.correctAnswer) {
-                    alert(`エラー: セグメント ${idx + 1} の「選択肢①(正解)」が入力されていません。`);
-                    hasError = true;
-                } else if (s.options.length < 2) {
-                    // Warn if only 1 option (just the correct answer)
-                    if (!confirm(`警告: セグメント ${idx + 1} に選択肢（ダミー）がありません。\nこれではクイズになりませんが、よろしいですか？`)) {
-                        hasError = true;
-                    }
-                }
-            }
-        });
-        if (hasError) return;
+        // V6 VALIDATION
+        const interactive = segs.find(s => s.type === 'interactive');
+        if (!interactive) {
+            alert("エラー: 「問題文②：後半」が読み込めませんでした。");
+            return;
+        }
+        if (!interactive.correctAnswer) {
+            alert("エラー: 「選択肢①(正解)」が入力されていません。");
+            return;
+        }
+        if (interactive.text === interactive.correctAnswer) {
+            if (!confirm("警告: 問題文②と正解が同じです。これでは訂正になりませんが保存しますか？")) return;
+        }
+
+        // Check distractors
+        if (!interactive.options || interactive.options.length < 2) {
+            if (!confirm("警告: 選択肢（ダミー）が入力されていません。\nこれではクイズになりませんが、よろしいですか？")) return;
+        }
 
         const newQ = {
             id: editId.value,
