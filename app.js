@@ -903,171 +903,173 @@ function addSegmentRow(seg = { text: "", type: "static" }) {
         }
 
         row.appendChild(details);
-        list.appendChild(row);
     }
 
-    function getSegmentsFromEditor() {
-        const list = document.getElementById('segment-list');
-        const rows = list.querySelectorAll('.segment-row');
-        const segments = [];
+    list.appendChild(row);
+}
 
-        rows.forEach(row => {
-            const type = row.querySelector('.segment-type-select').value;
-            const text = row.querySelector('.text-input').value;
+function getSegmentsFromEditor() {
+    const list = document.getElementById('segment-list');
+    const rows = list.querySelectorAll('.segment-row');
+    const segments = [];
 
-            if (type === 'static') {
-                segments.push({ text, type });
-            } else {
-                const detail = row.querySelector('.segment-detail');
-                const correctAnswer = detail.querySelector('.correct-input').value;
+    rows.forEach(row => {
+        const type = row.querySelector('.segment-type-select').value;
+        const text = row.querySelector('.text-input').value;
 
-                // Collect from multiple inputs
-                const optInputs = detail.querySelectorAll('.options-input-single');
-                const options = Array.from(optInputs).map(inp => inp.value.trim()).filter(v => v);
+        if (type === 'static') {
+            segments.push({ text, type });
+        } else {
+            const detail = row.querySelector('.segment-detail');
+            const correctAnswer = detail.querySelector('.correct-input').value;
 
-                // Ensure correct answer is included in options if not already? 
-                // Usually options should include the correct one AND wrong ones.
-                // The user requested inputs for "Options". 
-                // In the modal logic, we use "options". 
-                // So these inputs are ALL options including the correct one? 
-                // Or just the distractors? 
-                // The previous logic was "comma separated" -> "options".
-                // Typically "options" includes the correct answer. 
-                // If the user inputs "Answer, Wrong1, Wrong2", then random shuffle works.
-                // I will assume these inputs are ALL options.
-                // If the user omits the correct answer from options, it won't appear in the modal.
-                // I should auto-add the correct answer if missing? 
-                // No, user can control it. 
-                // But let's add a hint or ensure safety. 
-                // For now, simple collection.
+            // Collect from multiple inputs
+            const optInputs = detail.querySelectorAll('.options-input-single');
+            const options = Array.from(optInputs).map(inp => inp.value.trim()).filter(v => v);
 
-                segments.push({ text, type, correctAnswer, options });
-            }
-        });
-        return segments;
-    }
+            // Ensure correct answer is included in options if not already? 
+            // Usually options should include the correct one AND wrong ones.
+            // The user requested inputs for "Options". 
+            // In the modal logic, we use "options". 
+            // So these inputs are ALL options including the correct one? 
+            // Or just the distractors? 
+            // The previous logic was "comma separated" -> "options".
+            // Typically "options" includes the correct answer. 
+            // If the user inputs "Answer, Wrong1, Wrong2", then random shuffle works.
+            // I will assume these inputs are ALL options.
+            // If the user omits the correct answer from options, it won't appear in the modal.
+            // I should auto-add the correct answer if missing? 
+            // No, user can control it. 
+            // But let's add a hint or ensure safety. 
+            // For now, simple collection.
 
-    const addSegmentBtn = document.getElementById('add-segment-btn');
-    if (addSegmentBtn) addSegmentBtn.onclick = () => {
-        addSegmentRow({ text: "新規", type: "static" });
-    };
+            segments.push({ text, type, correctAnswer, options });
+        }
+    });
+    return segments;
+}
 
-    if (addQuestionBtn) addQuestionBtn.onclick = () => {
-        // Switch to editor screen if not already
-        showScreen('editor');
+const addSegmentBtn = document.getElementById('add-segment-btn');
+if (addSegmentBtn) addSegmentBtn.onclick = () => {
+    addSegmentRow({ text: "新規", type: "static" });
+};
 
-        editingIndex = -1;
-        editorForm.classList.remove('hidden');
-        editId.value = `New-${Date.now()}`;
-        editGenre.value = "測量法";
-        renderSegmentEditor([
-            { text: "新しい", type: "static" },
-            { text: "問題", type: "static" }
-        ]);
-        editExplanation.value = "";
-        editorForm.scrollIntoView({ behavior: 'smooth' });
-    };
+if (addQuestionBtn) addQuestionBtn.onclick = () => {
+    // Switch to editor screen if not already
+    showScreen('editor');
 
-    function openEditor(idx) {
-        // Ensure we are on the editor screen
-        showScreen('editor');
-        // Ensure list is populated behind the form (for context)
+    editingIndex = -1;
+    editorForm.classList.remove('hidden');
+    editId.value = `New-${Date.now()}`;
+    editGenre.value = "測量法";
+    renderSegmentEditor([
+        { text: "新しい", type: "static" },
+        { text: "問題", type: "static" }
+    ]);
+    editExplanation.value = "";
+    editorForm.scrollIntoView({ behavior: 'smooth' });
+};
+
+function openEditor(idx) {
+    // Ensure we are on the editor screen
+    showScreen('editor');
+    // Ensure list is populated behind the form (for context)
+    renderQuestionList();
+
+    editingIndex = idx;
+    const q = questionsData[idx];
+    editorForm.classList.remove('hidden');
+    editId.value = q.id;
+    editGenre.value = q.genre;
+    renderSegmentEditor(q.segments || []);
+    editExplanation.value = q.explanation;
+    editorForm.scrollIntoView({ behavior: 'smooth' });
+}
+
+if (editSaveBtn) editSaveBtn.onclick = () => {
+    try {
+        const segs = getSegmentsFromEditor();
+        const newQ = {
+            id: editId.value,
+            genre: editGenre.value,
+            instruction: "誤っている箇所を訂正しなさい。",
+            segments: segs,
+            explanation: editExplanation.value
+        };
+
+        if (editingIndex >= 0) {
+            questionsData[editingIndex] = newQ;
+        } else {
+            questionsData.push(newQ);
+        }
+
+        // Update UI
         renderQuestionList();
+        alert("変更をリストに適用しました。\n(Driveへの保存は「Driveに保存」ボタンを押してください)");
 
-        editingIndex = idx;
-        const q = questionsData[idx];
-        editorForm.classList.remove('hidden');
-        editId.value = q.id;
-        editGenre.value = q.genre;
-        renderSegmentEditor(q.segments || []);
-        editExplanation.value = q.explanation;
-        editorForm.scrollIntoView({ behavior: 'smooth' });
-    }
-
-    if (editSaveBtn) editSaveBtn.onclick = () => {
-        try {
-            const segs = getSegmentsFromEditor();
-            const newQ = {
-                id: editId.value,
-                genre: editGenre.value,
-                instruction: "誤っている箇所を訂正しなさい。",
-                segments: segs,
-                explanation: editExplanation.value
-            };
-
-            if (editingIndex >= 0) {
-                questionsData[editingIndex] = newQ;
-            } else {
-                questionsData.push(newQ);
-            }
-
-            // Update UI
-            renderQuestionList();
-            alert("変更をリストに適用しました。\n(Driveへの保存は「Driveに保存」ボタンを押してください)");
-
-            // I will NOT hide the form immediately so they can keep editing if they want,
-            // or I should hide it as before? User finds the flow confusing.
-            // "I have to authenticate... then re-write". 
-            // If I keep it open, they don't lose work.
-            // But usually "Save" implies "Done". 
-            // Let's hide it but ensure data is safe.
-            // Actually, if I just "Apply to List", it's in memory.
-            editorForm.classList.add('hidden');
-
-            // Auto-save logic with Feedback
-            if (driveClient.accessToken) {
-                driveClient.saveData('questions.json', questionsData).then(() => {
-                    // Success is handled by status callback usually, but we can alert here?
-                    // driveClient.saveData is async and returns promise (void).
-                    // The status callback updates the UI text.
-                    alert("Google Driveへの保存に成功しました！");
-                });
-            } else {
-                // Not logged in.
-                if (confirm("Google Driveに保存されていません。\nログインして保存しますか？")) {
-                    driveClient.login();
-                    // After login, we need to save? 
-                    // Login is async flow. We can't await it easily here without callback.
-                    // But we can trigger save after login in status handler??
-                    // Too complex for now. Just warn.
-                }
-            }
-        } catch (e) {
-            alert("保存エラー:\n" + e.message);
-        }
-    };
-
-    if (editCancelBtn) editCancelBtn.onclick = () => {
+        // I will NOT hide the form immediately so they can keep editing if they want,
+        // or I should hide it as before? User finds the flow confusing.
+        // "I have to authenticate... then re-write". 
+        // If I keep it open, they don't lose work.
+        // But usually "Save" implies "Done". 
+        // Let's hide it but ensure data is safe.
+        // Actually, if I just "Apply to List", it's in memory.
         editorForm.classList.add('hidden');
-    };
 
-    if (editDeleteBtn) editDeleteBtn.onclick = () => {
-        if (editingIndex >= 0 && confirm("この問題を削除しますか？")) {
-            questionsData.splice(editingIndex, 1);
-            editorForm.classList.add('hidden');
-            renderQuestionList();
-            if (driveClient.accessToken) driveClient.saveData('questions.json', questionsData);
+        // Auto-save logic with Feedback
+        if (driveClient.accessToken) {
+            driveClient.saveData('questions.json', questionsData).then(() => {
+                // Success is handled by status callback usually, but we can alert here?
+                // driveClient.saveData is async and returns promise (void).
+                // The status callback updates the UI text.
+                alert("Google Driveへの保存に成功しました！");
+            });
+        } else {
+            // Not logged in.
+            if (confirm("Google Driveに保存されていません。\nログインして保存しますか？")) {
+                driveClient.login();
+                // After login, we need to save? 
+                // Login is async flow. We can't await it easily here without callback.
+                // But we can trigger save after login in status handler??
+                // Too complex for now. Just warn.
+            }
         }
-    };
+    } catch (e) {
+        alert("保存エラー:\n" + e.message);
+    }
+};
 
-    if (saveDriveBtn) saveDriveBtn.onclick = () => {
-        if (!driveClient.accessToken) {
-            alert("先にGoogle認証を行ってください");
-            return;
-        }
-        driveClient.saveData('questions.json', questionsData);
-        driveClient.saveData('questions.json', questionsData);
-        driveClient.saveData('stats.json', statistics);
-    };
+if (editCancelBtn) editCancelBtn.onclick = () => {
+    editorForm.classList.add('hidden');
+};
 
-    // Start Screen Buttons (Bound here to ensure availability)
-    const startAuthBtn = document.getElementById('auth-btn-start');
-    const startParamsBtn = document.getElementById('params-btn-start');
-    const startEditorBtn = document.getElementById('editor-btn-start');
+if (editDeleteBtn) editDeleteBtn.onclick = () => {
+    if (editingIndex >= 0 && confirm("この問題を削除しますか？")) {
+        questionsData.splice(editingIndex, 1);
+        editorForm.classList.add('hidden');
+        renderQuestionList();
+        if (driveClient.accessToken) driveClient.saveData('questions.json', questionsData);
+    }
+};
 
-    if (startAuthBtn) startAuthBtn.onclick = () => driveClient.login();
-    if (startParamsBtn) startParamsBtn.onclick = () => { updateStatsUI(); showScreen('stats'); };
-    if (startEditorBtn) startEditorBtn.onclick = () => { renderQuestionList(); showScreen('editor'); };
+if (saveDriveBtn) saveDriveBtn.onclick = () => {
+    if (!driveClient.accessToken) {
+        alert("先にGoogle認証を行ってください");
+        return;
+    }
+    driveClient.saveData('questions.json', questionsData);
+    driveClient.saveData('questions.json', questionsData);
+    driveClient.saveData('stats.json', statistics);
+};
 
-    const editorAuthBtn = document.getElementById('editor-auth-btn');
-    if (editorAuthBtn) editorAuthBtn.onclick = () => driveClient.login();
+// Start Screen Buttons (Bound here to ensure availability)
+const startAuthBtn = document.getElementById('auth-btn-start');
+const startParamsBtn = document.getElementById('params-btn-start');
+const startEditorBtn = document.getElementById('editor-btn-start');
+
+if (startAuthBtn) startAuthBtn.onclick = () => driveClient.login();
+if (startParamsBtn) startParamsBtn.onclick = () => { updateStatsUI(); showScreen('stats'); };
+if (startEditorBtn) startEditorBtn.onclick = () => { renderQuestionList(); showScreen('editor'); };
+
+const editorAuthBtn = document.getElementById('editor-auth-btn');
+if (editorAuthBtn) editorAuthBtn.onclick = () => driveClient.login();
