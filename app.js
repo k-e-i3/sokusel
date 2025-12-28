@@ -906,37 +906,45 @@ function addSegmentRow(seg = { text: "", type: "static" }) {
         const details = document.createElement('div');
         details.className = "segment-detail";
 
-        // Correct Answer
-        details.innerHTML += `<label style="font-size:0.75rem; color:#15803d; font-weight:bold;">直した後の【正しい】言葉 (正解):</label>`;
-        const correctIn = document.createElement('input');
-        correctIn.className = "correct-input";
-        correctIn.value = seg.correctAnswer || seg.text;
-        correctIn.placeholder = "本来あるべき言葉（例：ミカン）";
-        details.appendChild(correctIn);
+        // Unified Choices (Radios + Inputs)
+        details.innerHTML += `<label style="font-size:0.75rem;">選択肢 (正解にチェックを入れてください):</label>`;
 
-        // Options - Split into 3 inputs as requested
-        // Filter out the correct answer from options so we don't show it in distractor inputs
-        // Users might have old data where options includes correct answer.
-        // Or data saved by THIS logic where options includes correct answer.
-        const currentCorrect = seg.correctAnswer || seg.text;
+        const currentCorrect = seg.correctAnswer || "";
         const allOpts = seg.options || [];
-        // Distractors are options that represent WRONG answers (mostly).
-        // If data is inconsistent, we try to filter. 
-        // Logic: specific value != correct value.
-        const distractors = allOpts.filter(o => o !== currentCorrect);
 
-        details.innerHTML += `<label style="font-size:0.75rem;">その他の選択肢 (ダミー):</label>`;
+        // Ensure at least 3 input slots.
+        const displayOpts = [...allOpts];
+        while (displayOpts.length < 3) displayOpts.push("");
 
-        // Ensure at least 3 inputs
-        for (let i = 0; i < 3; i++) {
-            const val = distractors[i] || "";
+        const choicesConfigs = displayOpts.slice(0, 3);
+        const radioName = `correct-radio-${Date.now()}-${Math.random()}`;
+
+        choicesConfigs.forEach((val, i) => {
+            const container = document.createElement('div');
+            container.style.cssText = "display:flex; align-items:center; margin-bottom:4px;";
+
+            // Radio Button
+            const radio = document.createElement('input');
+            radio.type = "radio";
+            radio.name = radioName;
+            radio.className = "correct-radio";
+            radio.value = i;
+            if (val && val === currentCorrect) {
+                radio.checked = true;
+            }
+
+            // Input
             const optIn = document.createElement('input');
             optIn.className = "options-input-single";
             optIn.value = val;
             optIn.placeholder = `選択肢 ${i + 1}`;
-            optIn.style.marginBottom = "4px";
-            details.appendChild(optIn);
-        }
+            optIn.style.flex = "1";
+            optIn.style.marginLeft = "8px";
+
+            container.appendChild(radio);
+            container.appendChild(optIn);
+            details.appendChild(container);
+        });
 
         row.appendChild(details);
     }
@@ -956,17 +964,32 @@ function getSegmentsFromEditor() {
         if (type === 'static') {
             segments.push({ text, type });
         } else {
+            // Collect Options
             const detail = row.querySelector('.segment-detail');
-            const correctAnswer = detail.querySelector('.correct-input').value;
-
-            // Collect from multiple inputs (Distractors)
             const optInputs = detail.querySelectorAll('.options-input-single');
-            const distractors = Array.from(optInputs).map(inp => inp.value.trim()).filter(v => v);
+            const radios = detail.querySelectorAll('.correct-radio');
 
-            // IMPORTANT: The app logic expects 'options' to be the FULL SET of choices displayed to the user.
-            // So we MUST include the Correct Answer in this list.
-            const uniqueOptions = new Set([correctAnswer, ...distractors]);
-            const options = Array.from(uniqueOptions);
+            const options = [];
+            let correctAnswer = "";
+            let selectedIdx = -1;
+
+            optInputs.forEach((inp, idx) => {
+                const cw = inp.value.trim();
+                // We keep empty strings? Or filter?
+                // If we filter, indices shift.
+                // We should probably filter empty options at the end, 
+                // BUT we need to know which one was checked.
+                if (cw) {
+                    options.push(cw);
+                    if (radios[idx].checked) {
+                        correctAnswer = cw;
+                        selectedIdx = idx;
+                    }
+                }
+            });
+
+            // If checking fails (e.g. checked empty option), or nothing checked.
+            // Validation handles that.
 
             segments.push({ text, type, correctAnswer, options });
         }
@@ -1019,16 +1042,12 @@ if (editSaveBtn) editSaveBtn.onclick = () => {
         let hasError = false;
         segs.forEach((s, idx) => {
             if (s.type === 'interactive') {
-                if (!s.correctAnswer || s.correctAnswer.trim() === "") {
-                    alert(`エラー: セグメント ${idx + 1} の「正解」が空欄です。\n（ボタンにする場合は正解が必須です）`);
+                if (!s.correctAnswer) {
+                    alert(`エラー: セグメント ${idx + 1} の正解が選択されていません。\n選択肢の横にあるラジオボタン（〇）で正解を指定してください。`);
                     hasError = true;
-                } else if (s.correctAnswer === s.text) {
-                    // Warn but allow? No, if strictly equal, it's not a correction.
-                    // But maybe user wants "No Error" type question? 
-                    // For now, warn.
-                    if (!confirm(`警告: セグメント ${idx + 1} の「正解」と「問題文」が同じです。\nこれでは訂正になりません。\nこのまま保存しますか？`)) {
-                        hasError = true;
-                    }
+                } else if (s.options.length < 2) {
+                    // Less than 2 options? (1 correct + 0 others) -> Just a button?
+                    // Maybe allow? But usually need choices.
                 }
             }
         });
