@@ -460,7 +460,15 @@ function initQuestion() {
     }
 
     const q = filteredQuestions[currentQIndex];
-    if (progressDisplay) progressDisplay.textContent = `Q${currentQIndex + 1} / ${maxQ}`;
+
+    // Feature: Accuracy Display
+    const answered = currentQIndex; // Before answering this one
+    let accText = "";
+    if (answered > 0) {
+        const rate = Math.round((score / answered) * 100);
+        accText = ` (正答率: ${rate}%)`;
+    }
+    if (progressDisplay) progressDisplay.textContent = `Q${currentQIndex + 1} / ${maxQ}${accText}`;
 
     // Feature 4: Display ID
     const idBadge = document.getElementById('question-id-display');
@@ -500,7 +508,13 @@ function openModal(itemEvent, index) {
     if (isChecked) return;
     const segment = currentSegments[index];
     activeSegmentIndex = index;
-    const shuffledOptions = [...segment.options].sort(() => Math.random() - 0.5);
+
+    // Improved Randomization (Fisher-Yates Shuffle)
+    const shuffledOptions = [...segment.options];
+    for (let i = shuffledOptions.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffledOptions[i], shuffledOptions[j]] = [shuffledOptions[j], shuffledOptions[i]];
+    }
 
     selectionModal.innerHTML = '';
     shuffledOptions.forEach(opt => {
@@ -563,13 +577,15 @@ if (checkBtn) checkBtn.onclick = () => {
     const gameEditBtn = document.getElementById('game-edit-btn');
     if (gameEditBtn) {
         gameEditBtn.classList.remove('hidden');
-        gameEditBtn.onclick = () => {
+        gameEditBtn.onclick = (e) => {
+            console.log("Edit button clicked for ID:", q.id);
             // Robust find: Compare as strings to avoid type mismatches
             const mainIdx = questionsData.findIndex(item => String(item.id) === String(q.id));
             if (mainIdx >= 0) {
                 openEditor(mainIdx);
             } else {
-                alert("編集対象の問題が見つかりませんでした (ID不一致)");
+                console.error("Edit target not found. ID:", q.id, "Questions:", questionsData);
+                alert(`編集対象の問題が見つかりませんでした (ID: ${q.id})\nコンソールを確認してください。`);
             }
         };
     }
@@ -584,6 +600,21 @@ if (checkBtn) checkBtn.onclick = () => {
 
     // Update Stats
     updateStats(g, allCorrect, q.id);
+
+    // Update Accuracy Display (Immediate)
+    if (progressDisplay) {
+        // Current index is still currentQIndex, but we just answered it.
+        // So answered count is currentQIndex + 1
+        const nowAnswered = currentQIndex + 1;
+        const nowScore = allCorrect ? score + 1 : score; // score variable updates below, but calculate for display now
+        // Wait, score is updated below. Let's rely on updated score variable in next render? 
+        // No, currentQIndex increments only on 'Next'.
+        // So we should update display or wait for Next? User wants to see it.
+        // Let's update it here.
+        const currentRate = Math.round((nowScore / nowAnswered) * 100);
+        const maxQ = filteredQuestions.length;
+        progressDisplay.textContent = `Q${currentQIndex + 1} / ${maxQ} (正答率: ${currentRate}%)`;
+    }
 
     if (allCorrect) {
         score++;
