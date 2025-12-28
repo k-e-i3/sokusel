@@ -860,7 +860,8 @@ function addSegmentRow(seg = { text: "", type: "static" }) {
     textIn.type = "text";
     textIn.className = "text-input";
     textIn.value = seg.text;
-    textIn.placeholder = "表示テキスト";
+    textIn.value = seg.text;
+    textIn.placeholder = "問題文に表示する言葉（誤りを含む）";
     textIn.style.width = "100%";
 
     // Delete Button
@@ -880,11 +881,11 @@ function addSegmentRow(seg = { text: "", type: "static" }) {
         details.className = "segment-detail";
 
         // Correct Answer
-        details.innerHTML += `<label style="font-size:0.75rem;">正解 (訂正後):</label>`;
+        details.innerHTML += `<label style="font-size:0.75rem;">正しい言葉（正解）:</label>`;
         const correctIn = document.createElement('input');
         correctIn.className = "correct-input";
         correctIn.value = seg.correctAnswer || seg.text;
-        correctIn.placeholder = "正しい文言";
+        correctIn.placeholder = "ここを直した後の正しい言葉";
         details.appendChild(correctIn);
 
         // Options - Split into 3 inputs as requested
