@@ -128,8 +128,16 @@ class DriveClient {
                 localStorage.setItem('sokusel_stats', JSON.stringify(statistics)); // Sync to local for offline backup
                 updateStatsUI();
             }
+            // Update the file timestamps display on page
+            const qTimeEl = document.getElementById('q-file-time');
+            const sTimeEl = document.getElementById('s-file-time');
+            const timestampsDiv = document.getElementById('file-timestamps');
 
-            this.onStatusChange(`✅ 同期完了\n問題: ${questionsData.length}問 (${qModifiedTime})\n成績: ${statistics.totalAnswers}回 (${sModifiedTime})`);
+            if (qTimeEl) qTimeEl.textContent = qModifiedTime ? `${questionsData.length}問 (${qModifiedTime})` : '--';
+            if (sTimeEl) sTimeEl.textContent = sModifiedTime ? `${statistics.totalAnswers}回 (${sModifiedTime})` : '--';
+            if (timestampsDiv) timestampsDiv.style.display = 'block';
+
+            this.onStatusChange(`✅ 同期完了`);
 
         } catch (e) {
             console.error("Drive resource init error", e);
@@ -1412,8 +1420,15 @@ if (syncLoadBtn) syncLoadBtn.onclick = async () => {
             updateStatsUI();
         }
 
-        driveClient.onStatusChange(`✅ 読込完了\n問題: ${questionsData.length}問 (${qModifiedTime})\n成績: ${statistics.totalAnswers}回 (${sModifiedTime})`);
-        alert(`ドライブからデータを読み込みました！\n\n【問題データ】\n件数: ${questionsData.length}問\n最終更新: ${qModifiedTime}\n\n【成績データ】\n回答数: ${statistics.totalAnswers}回\n最終更新: ${sModifiedTime}`);
+        // Update page timestamps display
+        const qTimeEl = document.getElementById('q-file-time');
+        const sTimeEl = document.getElementById('s-file-time');
+        const timestampsDiv = document.getElementById('file-timestamps');
+        if (qTimeEl) qTimeEl.textContent = qModifiedTime ? `${questionsData.length}問 (${qModifiedTime})` : '--';
+        if (sTimeEl) sTimeEl.textContent = sModifiedTime ? `${statistics.totalAnswers}回 (${sModifiedTime})` : '--';
+        if (timestampsDiv) timestampsDiv.style.display = 'block';
+
+        driveClient.onStatusChange(`✅ 読込完了`);
     } catch (e) {
         driveClient.onStatusChange("❌ 読込失敗: " + e.message);
         alert("読み込みに失敗しました: " + e.message);
