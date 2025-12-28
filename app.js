@@ -889,12 +889,21 @@ function addSegmentRow(seg = { text: "", type: "static" }) {
         details.appendChild(correctIn);
 
         // Options - Split into 3 inputs as requested
-        const opts = (seg.options || []);
+        // Filter out the correct answer from options so we don't show it in distractor inputs
+        // Users might have old data where options includes correct answer.
+        // Or data saved by THIS logic where options includes correct answer.
+        const currentCorrect = seg.correctAnswer || seg.text;
+        const allOpts = seg.options || [];
+        // Distractors are options that represent WRONG answers (mostly).
+        // If data is inconsistent, we try to filter. 
+        // Logic: specific value != correct value.
+        const distractors = allOpts.filter(o => o !== currentCorrect);
+
         details.innerHTML += `<label style="font-size:0.75rem;">選択肢 (ダミーの誤答):</label>`;
 
         // Ensure at least 3 inputs
         for (let i = 0; i < 3; i++) {
-            const val = opts[i] || "";
+            const val = distractors[i] || "";
             const optIn = document.createElement('input');
             optIn.className = "options-input-single";
             optIn.value = val;
@@ -924,25 +933,14 @@ function getSegmentsFromEditor() {
             const detail = row.querySelector('.segment-detail');
             const correctAnswer = detail.querySelector('.correct-input').value;
 
-            // Collect from multiple inputs
+            // Collect from multiple inputs (Distractors)
             const optInputs = detail.querySelectorAll('.options-input-single');
-            const options = Array.from(optInputs).map(inp => inp.value.trim()).filter(v => v);
+            const distractors = Array.from(optInputs).map(inp => inp.value.trim()).filter(v => v);
 
-            // Ensure correct answer is included in options if not already? 
-            // Usually options should include the correct one AND wrong ones.
-            // The user requested inputs for "Options". 
-            // In the modal logic, we use "options". 
-            // So these inputs are ALL options including the correct one? 
-            // Or just the distractors? 
-            // The previous logic was "comma separated" -> "options".
-            // Typically "options" includes the correct answer. 
-            // If the user inputs "Answer, Wrong1, Wrong2", then random shuffle works.
-            // I will assume these inputs are ALL options.
-            // If the user omits the correct answer from options, it won't appear in the modal.
-            // I should auto-add the correct answer if missing? 
-            // No, user can control it. 
-            // But let's add a hint or ensure safety. 
-            // For now, simple collection.
+            // IMPORTANT: The app logic expects 'options' to be the FULL SET of choices displayed to the user.
+            // So we MUST include the Correct Answer in this list.
+            const uniqueOptions = new Set([correctAnswer, ...distractors]);
+            const options = Array.from(uniqueOptions);
 
             segments.push({ text, type, correctAnswer, options });
         }
