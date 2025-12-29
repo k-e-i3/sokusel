@@ -26,16 +26,29 @@ class DriveClient {
                 try {
                     await window.gapi.client.init({});
                     await window.gapi.client.load('drive', 'v3');
-                    this.onStatusChange("🔐 ログインしてデータを同期 (Gボタン)");
+
+                    // Try silent login (prompt: 'none' for auto-refresh if already authorized)
+                    this.tokenClient = window.google.accounts.oauth2.initTokenClient({
+                        client_id: CLIENT_ID,
+                        scope: SCOPES,
+                        callback: (resp) => this.handleAuthResponse(resp),
+                        prompt: '' // Empty string allows auto-select if only one account
+                    });
+
+                    // Attempt silent token refresh
+                    this.onStatusChange("🔄 自動ログイン試行中...");
+                    try {
+                        this.tokenClient.requestAccessToken({ prompt: 'none' });
+                    } catch (silentErr) {
+                        // Silent login failed, show manual login prompt
+                        this.onStatusChange("🔐 Gボタンでログイン");
+                        this.updateLoginStatus(false);
+                    }
+
                 } catch (e) {
                     console.error("GAPI Error", e);
                     this.onStatusChange("❌ Google API初期化失敗");
                 }
-            });
-
-            this.tokenClient = window.google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID, scope: SCOPES,
-                callback: (resp) => this.handleAuthResponse(resp),
             });
 
         } catch (err) {
