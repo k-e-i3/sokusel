@@ -130,7 +130,7 @@
         <!-- Editor Screen -->
         <div id="editor-screen" class="screen hidden">
             <header class="app-header">
-                <h2>問題編集</h2>
+                <h2>問題編集 <span id="editor-login-status" style="font-size:0.7rem; margin-left:10px;"></span></h2>
                 <button id="editor-close-btn" class="icon-btn">✖</button>
             </header>
             <div class="editor-content">
@@ -161,6 +161,12 @@
                             <option value="地図編集">
                             <option value="応用測量">
                         </datalist>
+                    </div>
+                    <div class="form-group">
+                        <label>問題文プレビュー</label>
+                        <div id="segment-preview"
+                            style="background:#f1f5f9; padding:10px; border-radius:6px; font-size:1.1rem; min-height:3em; color:#1e293b;">
+                        </div>
                     </div>
                     <div class="form-group">
                         <!-- V9: Removed wrapper and label as requested -->

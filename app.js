@@ -81,14 +81,21 @@ class DriveClient {
     }
 
     updateLoginStatus(isLoggedIn) {
+        const statusHtml = isLoggedIn
+            ? '<span style="color:#4ade80;">🟢 ログイン済み</span>'
+            : '<span style="color:#fbbf24;">⚪ 未ログイン</span>';
+
+        // Update Start Screen
         const loginStatusEl = document.getElementById('login-status');
-        if (loginStatusEl) {
-            if (isLoggedIn) {
-                loginStatusEl.innerHTML = '<span style="color:#4ade80;">🟢 ログイン済み</span>';
-            } else {
-                loginStatusEl.innerHTML = '<span style="color:#fbbf24;">⚪ 未ログイン</span>';
-            }
-        }
+        if (loginStatusEl) loginStatusEl.innerHTML = statusHtml;
+
+        // Update Editor Header
+        const editorLoginStatusEl = document.getElementById('editor-login-status');
+        if (editorLoginStatusEl) editorLoginStatusEl.innerHTML = statusHtml;
+
+        // If we want a reliable indicator in the app header too?
+        // Let's assume we might urge the user to add one later if needed, 
+        // but for now Editor and Start Screen are the critical points.
     }
 
     handleAuthResponse(r) {
@@ -172,33 +179,66 @@ class DriveClient {
     }
 
     async checkFile(fileName, defaultContent) {
+        // More robust query: exact name, not trashed, in the specific folder
         const qFile = `name='${fileName}' and '${this.folderId}' in parents and trashed=false`;
-        const resFile = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qFile)}`, {
-            headers: { Authorization: `Bearer ${this.accessToken}` }
-        });
-        const dataFile = await resFile.json();
 
-        if (dataFile.files?.length === 0) {
-            this.onStatusChange(`${fileName}を作成中...`);
-            await this.saveData(fileName, defaultContent);
-        } else {
-            // We don't necessarily load everything here, app.js will request what it needs
-            this.onStatusChange(`${fileName}を確認`);
+        try {
+            const resFile = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qFile)}&orderBy=modifiedTime desc`, {
+                headers: { Authorization: `Bearer ${this.accessToken}` }
+            });
+            const dataFile = await resFile.json();
+
+            if (dataFile.files && dataFile.files.length > 0) {
+                // File exists!
+                console.log(`File matched: ${fileName} (ID: ${dataFile.files[0].id})`);
+                this.onStatusChange(`${fileName}を確認`);
+
+                // CRITICAL: If strictly multiple files found, maybe warn or clean up? 
+                // For now, we just use the newest one (first one due to orderBy)
+                if (dataFile.files.length > 1) {
+                    console.warn(`Duplicate files found for ${fileName}. Using the most recent one.`);
+                }
+            } else {
+                // File does not exist, create it
+                console.log(`File not found, creating: ${fileName}`);
+                this.onStatusChange(`${fileName}を作成中...`);
+                await this.createFile(fileName, defaultContent);
+            }
+        } catch (e) {
+            console.error("Check file error:", e);
         }
+    }
+
+    async createFile(fileName, data) {
+        const content = JSON.stringify(data, null, 2);
+        const metadata = {
+            name: fileName,
+            mimeType: 'application/json',
+            parents: [this.folderId]
+        };
+
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+        form.append('file', new Blob([content], { type: 'application/json' }));
+
+        await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${this.accessToken}` },
+            body: form
+        });
     }
 
     async loadData(fileName) {
         if (!this.folderId || !this.accessToken) {
-            // If we are stuck waiting for auth, let user know
             if (!this.accessToken) {
-                this.onStatusChange("⚠️ ログイン待機中... (Gボタンを押してください)");
+                this.onStatusChange("⚠️ ログイン待機中... (Gボタン)");
             }
             return null;
         }
         try {
-            // Find file ID
+            // Find file ID (Newest first)
             const qFile = `name='${fileName}' and '${this.folderId}' in parents and trashed=false`;
-            const resFile = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qFile)}&fields=files(id,modifiedTime)`, {
+            const resFile = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qFile)}&orderBy=modifiedTime desc&fields=files(id,modifiedTime,size)`, {
                 headers: {
                     Authorization: `Bearer ${this.accessToken}`,
                     'Cache-Control': 'no-cache'
@@ -207,19 +247,23 @@ class DriveClient {
             const dataFile = await resFile.json();
 
             if (dataFile.files?.length > 0) {
-                const fileId = dataFile.files[0].id;
-                const modifiedTime = dataFile.files[0].modifiedTime; // ISO timestamp
-                // Add timestamp to query to prevent browser caching of the content
+                const file = dataFile.files[0];
+
+                // Safety Check: If remote file is empty (size 0) or very small, might be corrupted.
+                // But JSON [] is small too.
+
                 const ts = Date.now();
-                const contentRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&t=${ts}`, {
+                const contentRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&t=${ts}`, {
                     headers: {
                         Authorization: `Bearer ${this.accessToken}`,
                         'Cache-Control': 'no-cache'
                     }
                 });
                 const content = await contentRes.json();
-                // Return both content and metadata
-                return { data: content, modifiedTime: modifiedTime };
+
+                // Check if we loaded an empty array which might overwrite good local data?
+                // For now, source of truth is Drive. 
+                return { data: content, modifiedTime: file.modifiedTime };
             }
             return null;
         } catch (e) {
@@ -237,41 +281,65 @@ class DriveClient {
         try {
             this.onStatusChange(`${fileName}を保存中...`);
 
-            // Find file ID
+            // Find file ID (Strictly newest)
             const qFile = `name='${fileName}' and '${this.folderId}' in parents and trashed=false`;
-            const resFile = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qFile)}`, {
+            const resFile = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qFile)}&orderBy=modifiedTime desc`, {
                 headers: { Authorization: `Bearer ${this.accessToken}` }
             });
             const dataFile = await resFile.json();
 
             if (dataFile.files?.length > 0) {
+                // Update existing (PATCH)
                 const fileId = dataFile.files[0].id;
                 await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
                     method: 'PATCH',
-                    headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': 'application/json' },
+                    headers: {
+                        Authorization: `Bearer ${this.accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: content
+                });
+                console.log(`Updated ${fileName} (ID: ${fileId})`);
+            } else {
+                // Create new if really missing
+                await this.createFile(fileName, data);
+            }
+
+            // Success Feedback
+            const timestamp = new Date().toLocaleString('ja-JP');
+            this.onStatusChange(`✅ 保存完了 (${timestamp})`);
+
+        } catch (e) {
+            console.error("Save error", e);
+            this.onStatusChange("❌ 保存失敗: " + e.message);
+            // Re-throw for caller handling (alerts)
+            throw e;
+        }
+    }
+    headers: { Authorization: `Bearer ${this.accessToken }`, 'Content-Type': 'application/json' },
                     body: content
                 });
             } else {
                 // Create
                 const metadata = { name: fileName, parents: [this.folderId] };
                 const boundary = '-------314159265358979323846';
-                const body = `--${boundary}\nContent-Type: application/json; charset=UTF-8\n\n${JSON.stringify(metadata)}\n--${boundary}\nContent-Type: application/json\n\n${content}\n--${boundary}--`;
+                const body = `--${ boundary } \nContent - Type: application / json; charset = UTF - 8\n\n${ JSON.stringify(metadata) } \n--${ boundary } \nContent - Type: application / json\n\n${ content } \n--${ boundary } --`;
 
                 await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
                     method: 'POST',
-                    headers: { Authorization: `Bearer ${this.accessToken}`, 'Content-Type': `multipart/related; boundary=${boundary}` },
+                    headers: { Authorization: `Bearer ${ this.accessToken } `, 'Content-Type': `multipart / related; boundary = ${ boundary } ` },
                     body: body
                 });
             }
             this.onStatusChange("✅ 保存完了: " + fileName);
             // Explicit Feedback as requested
             if (fileName === 'questions.json') {
-                alert(`Google Driveに問題データを保存しました！\nファイル名: ${fileName}\n時刻: ${new Date().toLocaleTimeString()}`);
+                alert(`Google Driveに問題データを保存しました！\nファイル名: ${ fileName } \n時刻: ${ new Date().toLocaleTimeString() } `);
             }
         } catch (e) {
             console.error("Save error", e);
             this.onStatusChange("❌ 保存失敗");
-            alert(`Google Driveへの保存に失敗しました。\nエラー: ${e.message}`);
+            alert(`Google Driveへの保存に失敗しました。\nエラー: ${ e.message } `);
         }
     }
 }
@@ -555,37 +623,37 @@ function initQuestion() {
     let accText = "";
     if (answered > 0) {
         const rate = Math.round((score / answered) * 100);
-        accText = ` (正答率: ${rate}%)`;
+        accText = ` (正答率: ${ rate } %)`;
     }
-    if (progressDisplay) progressDisplay.textContent = `Q${currentQIndex + 1} / ${maxQ}${accText}`;
+    if (progressDisplay) progressDisplay.textContent = `Q${ currentQIndex + 1 } / ${maxQ}${accText}`;
 
-    // Feature 4: Display ID
-    const idBadge = document.getElementById('question-id-display');
-    if (idBadge) idBadge.textContent = `ID: ${q.id}`;
+// Feature 4: Display ID
+const idBadge = document.getElementById('question-id-display');
+if (idBadge) idBadge.textContent = `ID: ${q.id}`;
 
-    if (instructionText) instructionText.textContent = q.instruction || "誤っている箇所を訂正しなさい。";
+if (instructionText) instructionText.textContent = q.instruction || "誤っている箇所を訂正しなさい。";
 
-    currentSegments = JSON.parse(JSON.stringify(q.segments));
+currentSegments = JSON.parse(JSON.stringify(q.segments));
 
-    // Feature: Randomize Problem Text with Distractors (Memory Training)
-    // For each interactive segment, if it's not already correct (or maybe we force it to be wrong for the game?), 
-    // pick a RANDOM WRONG option to display as the initial text.
-    // This forces the user to recognize it's wrong, rather than memorizing "X matches Y".
-    currentSegments.forEach(seg => {
-        if (seg.type === 'interactive' && seg.options && seg.options.length >= 2) {
-            // Find distractors (options that are NOT the correct answer)
-            const distractors = seg.options.filter(opt => opt !== seg.correctAnswer);
+// Feature: Randomize Problem Text with Distractors (Memory Training)
+// For each interactive segment, if it's not already correct (or maybe we force it to be wrong for the game?), 
+// pick a RANDOM WRONG option to display as the initial text.
+// This forces the user to recognize it's wrong, rather than memorizing "X matches Y".
+currentSegments.forEach(seg => {
+    if (seg.type === 'interactive' && seg.options && seg.options.length >= 2) {
+        // Find distractors (options that are NOT the correct answer)
+        const distractors = seg.options.filter(opt => opt !== seg.correctAnswer);
 
-            if (distractors.length > 0) {
-                // Pick random distractor
-                const randomDistractor = distractors[Math.floor(Math.random() * distractors.length)];
-                // Set the displayed text to this wrong answer
-                seg.text = randomDistractor;
-            }
+        if (distractors.length > 0) {
+            // Pick random distractor
+            const randomDistractor = distractors[Math.floor(Math.random() * distractors.length)];
+            // Set the displayed text to this wrong answer
+            seg.text = randomDistractor;
         }
-    });
+    }
+});
 
-    renderSentence();
+renderSentence();
 }
 
 function renderSentence() {
@@ -1481,6 +1549,52 @@ if (syncSaveBtn) syncSaveBtn.onclick = async () => {
 const editorAuthBtn = document.getElementById('editor-auth-btn');
 if (editorAuthBtn) editorAuthBtn.onclick = () => driveClient.login();
 
+// Helper to update preview
+function updatePreview() {
+    const previewEl = document.getElementById('segment-preview');
+    if (!previewEl) return;
+
+    // Grab all current inputs
+    // We need to reconstruct the sentence from the DOM inputs
+    const inputs = document.querySelectorAll('#segment-list input[type="text"]');
+    let fullText = "";
+
+    // This is tricky because the inputs are scattered.
+    // Let's iterate the row structure we built.
+    const rows = document.querySelectorAll('#segment-list > div'); // The flex rows
+    rows.forEach(row => {
+        // Each row is a segment. finding the 'text' input.
+        // It's usually the 2nd input if type is interactive, or 1st if static.
+        // Actually, we gave them class 'seg-text-input' or similar? No, standard inputs.
+        // Let's look at the structure in renderSegmentEditor.
+        // Structure: select(type), input(text), input(answer), wrapper(options)
+
+        // Let's rely on getSegmentsFromEditor which already does the parsing logic? 
+        // No, that might be heavy. Let's do a lightweight scan.
+
+        const typeSelect = row.querySelector('select');
+        if (!typeSelect) return;
+        const inputs = row.querySelectorAll('input[type="text"]');
+
+        if (inputs.length > 0) {
+            // The text shown to user is always the FIRST text input in the row logic 
+            // (Standard: Text, Underline: Text, Gap: Pre | Gap | Post... wait Gap logic is complex)
+            // Wait, our V9 fixed editor logic is: 
+            // Row 1: Prefix (Static)
+            // Row 2: Target (Interactive)
+            // Row 3: Suffix (Static)
+            // Simpler than generalized list!
+
+            // Actually, renderSegmentEditor clears list and appends specific rows.
+            // Let's update `renderSegmentEditor` to just bind listeners to the specific IDs we create.
+        }
+    });
+
+    // Easier approach: The V9 editor has specific inputs for Prefix, Target, Suffix.
+    // Let's bind to those directly if we can default them. Use IDs?
+    // The current renderSegmentEditor creates generic rows. Let's change it to give them IDs or specific classes.
+}
+
 // Editor V9 Fixed Layout Logic (Clean Block Layout)
 function renderSegmentEditor(segments) {
     const list = document.getElementById('segment-list');
@@ -1499,132 +1613,242 @@ function renderSegmentEditor(segments) {
         prefix = segments.slice(0, interactIdx).map(s => s.text).join("");
         suffix = segments.slice(interactIdx + 1).map(s => s.text).join("");
     } else {
+        // Fallback or purely static? 
+        // If no interactive, maybe just all text in prefix?
         prefix = segments.map(s => s.text).join("");
     }
 
-    // Helper for creating labelled rows with strict layout
-    const createRow = (labelText, inputClass, value, placeholder, styles = {}) => {
+    // Helper to create input row
+    const createRow = (label, value, isTarget) => {
         const row = document.createElement('div');
-        // Force block layout and spacing
-        row.style.display = 'block';
         row.style.marginBottom = '15px';
-        if (styles.rowClass) row.className = styles.rowClass;
 
-        const label = document.createElement('div'); // div instead of label
-        label.style.display = 'block';
-        label.style.fontWeight = 'bold';
-        label.style.marginBottom = '6px';
-        label.style.fontSize = '0.95rem';
-        label.style.color = styles.labelColor || '#334155';
-        label.textContent = labelText;
+        const lbl = document.createElement('div');
+        lbl.textContent = label;
+        lbl.style.fontSize = '0.9rem';
+        lbl.style.fontWeight = 'bold';
+        lbl.style.marginBottom = '5px';
+        lbl.style.color = isTarget ? '#e11d48' : '#64748b'; // Red for target
 
         const input = document.createElement('input');
         input.type = 'text';
-        input.className = inputClass;
-        input.value = value || "";
-        input.placeholder = placeholder;
-
-        // Force strict box model
-        input.style.display = 'block';
+        input.value = value;
+        input.className = isTarget ? 'target-text-input' : 'static-text-input'; // Marker classes
         input.style.width = '100%';
-        input.style.boxSizing = 'border-box'; // Critical for padding
-        input.style.padding = '10px';
-        input.style.fontSize = '1rem';
+        input.style.padding = '8px';
         input.style.border = '1px solid #cbd5e1';
-        input.style.borderRadius = '6px';
-        input.style.outline = 'none';
+        input.style.borderRadius = '4px';
 
-        if (styles.bg) input.style.backgroundColor = styles.bg;
-        if (styles.borderColor) input.style.borderColor = styles.borderColor;
-        if (styles.borderWidth) input.style.borderWidth = styles.borderWidth;
+        // Bind Preview Update
+        input.addEventListener('input', updatePreviewText);
 
-        row.appendChild(label);
+        row.appendChild(lbl);
         row.appendChild(input);
-        return row;
+        return { row, input };
     };
 
-    // 1. Prefix
-    list.appendChild(createRow(
-        "① 問題文：前半部分 (固定テキスト)",
-        "text-input fixed-prefix",
-        prefix,
-        "例：基本測量の測量成果を"
-    ));
+    // 1. Prefix Row
+    const prefixRow = createRow("① 前文 (Prefix)", prefix, false);
+    list.appendChild(prefixRow.row);
 
-    // 2. Target
-    list.appendChild(createRow(
-        "② 問題文：訂正箇所 (ボタンになる部分)",
-        "text-input fixed-target",
-        targetSeg.text,
-        "例：国土地理院の長の承認",
-        { rowClass: 'interactive', bg: '#eff6ff', borderColor: '#3b82f6', labelColor: '#1d4ed8' }
-    ));
+    // 2. Target Row
+    const targetRow = createRow("② 問題箇所 (Target)", targetSeg.text, true);
+    list.appendChild(targetRow.row);
 
-    // 3. Suffix
-    list.appendChild(createRow(
-        "③ 問題文：後半部分 (固定テキスト)",
-        "text-input fixed-suffix",
-        suffix,
-        "例：を得なければならない。"
-    ));
+    // 3. Choices Row (Horizontal)
+    const choiceRow = document.createElement('div');
+    choiceRow.style.marginBottom = '15px';
+    choiceRow.innerHTML = `<div style="font-size:0.9rem; font-weight:bold; margin-bottom:5px; color:#e11d48;">③ 選択肢 (正解は左端)</div>`;
+    const choiceContainer = document.createElement('div');
+    choiceContainer.style.display = 'flex';
+    choiceContainer.style.gap = '5px';
 
-    // 4. Choices Container
-    const choicesRow = document.createElement('div');
-    choicesRow.style.display = 'block';
-    choicesRow.style.backgroundColor = '#f0fdf4';
-    choicesRow.style.padding = '15px';
-    choicesRow.style.marginTop = '20px';
-    choicesRow.style.border = '1px solid #bbf7d0';
-    choicesRow.style.borderRadius = '8px';
+    // Ensure we have 3 inputs
+    const opts = targetSeg.options && targetSeg.options.length ? targetSeg.options : [targetSeg.correctAnswer || "", "", ""];
+    // Make sure index 0 is correct answer logic usually? 
+    // Data model: options[0] is usually Clean/Correct one? 
+    // In our app logic, options[0] is often the correct one if we shuffle later.
+    // Let's assume user inputs: [Correct, Wrong1, Wrong2]
 
-    const choicesTitle = document.createElement('div');
-    choicesTitle.textContent = "▼ 選択肢設定";
-    choicesTitle.style.fontWeight = 'bold';
-    choicesTitle.style.fontSize = '1rem';
-    choicesTitle.style.color = '#15803d';
-    choicesTitle.style.borderBottom = '2px solid #bbf7d0';
-    choicesTitle.style.paddingBottom = '8px';
-    choicesTitle.style.marginBottom = '15px';
-    choicesRow.appendChild(choicesTitle);
+    for (let i = 0; i < 3; i++) {
+        const optInput = document.createElement('input');
+        optInput.type = 'text';
+        optInput.value = opts[i] || "";
+        optInput.className = 'choice-input';
+        optInput.placeholder = i === 0 ? "正解" : "誤答";
+        optInput.style.flex = "1";
+        optInput.style.padding = "8px";
+        optInput.style.border = i === 0 ? "2px solid #86efac" : "1px solid #cbd5e1"; // Green border for correct
+        choiceContainer.appendChild(optInput);
+    }
+    choiceRow.appendChild(choiceContainer);
+    list.appendChild(choiceRow);
 
-    // Prepare options
-    const allOpts = targetSeg.options || [];
-    const correctVal = targetSeg.correctAnswer || "";
-    let distractors = [];
-    if (correctVal) {
-        distractors = allOpts.filter(o => o !== correctVal);
-    } else {
-        distractors = [...allOpts];
+    // 4. Suffix Row
+    const suffixRow = createRow("④ 後文 (Suffix)", suffix, false);
+    list.appendChild(suffixRow.row);
+
+    // Initial Preview
+    updatePreviewText();
+}
+
+function updatePreviewText() {
+    const list = document.getElementById('segment-list');
+    if (!list) return;
+    const inputs = list.querySelectorAll('input[type="text"]');
+    // Based on order in createRow: 
+    // 0: Prefix
+    // 1: Target
+    // 2,3,4: Choices (not part of sentence text usually, unless we mean the question text itself?)
+    // 5: Suffix
+
+    // Actually using classes is safer
+    const statics = list.querySelectorAll('.static-text-input');
+    const targets = list.querySelectorAll('.target-text-input');
+
+    // If strict order: Prefix -> Target -> Suffix
+    // Prefix is statics[0], Suffix is statics[1] ?? 
+    // No, logic above appended Prefix, Target, Choices, Suffix.
+    // So inputs array: [Prefix, Target, Choice1, Choice2, Choice3, Suffix]
+
+    if (inputs.length >= 6) {
+        const p = inputs[0].value;
+        const t = inputs[1].value;
+        const s = inputs[inputs.length - 1].value; // Last one
+
+        const previewEl = document.getElementById('segment-preview');
+        if (previewEl) {
+            // Highlight target in red?
+            previewEl.innerHTML = `${p}<span style="color:#e11d48; font-weight:bold; border-bottom:2px solid #e11d48;">${t}</span>${s}`;
+        }
+    }
+}
+prefix = segments.map(s => s.text).join("");
     }
 
-    // Choice 1 (Correct)
-    const cRow = createRow(
-        "選択肢① (正解)",
-        "fixed-choice-correct",
-        correctVal,
-        "正しい言葉を入力",
-        { labelColor: '#15803d', borderColor: '#86efac', borderWidth: '2px', bg: '#ffffff' }
-    );
-    cRow.querySelector('input').style.backgroundColor = '#f0fdf4';
-    choicesRow.appendChild(cRow);
+// Helper for creating labelled rows with strict layout
+const createRow = (labelText, inputClass, value, placeholder, styles = {}) => {
+    const row = document.createElement('div');
+    // Force block layout and spacing
+    row.style.display = 'block';
+    row.style.marginBottom = '15px';
+    if (styles.rowClass) row.className = styles.rowClass;
 
-    // Choice 2 (Distractor 1)
-    choicesRow.appendChild(createRow(
-        "選択肢② (ダミー)",
-        "fixed-choice-dist1",
-        distractors[0] || "",
-        "ダミー選択肢1"
-    ));
+    const label = document.createElement('div'); // div instead of label
+    label.style.display = 'block';
+    label.style.fontWeight = 'bold';
+    label.style.marginBottom = '6px';
+    label.style.fontSize = '0.95rem';
+    label.style.color = styles.labelColor || '#334155';
+    label.textContent = labelText;
 
-    // Choice 3 (Distractor 2)
-    choicesRow.appendChild(createRow(
-        "選択肢③ (ダミー)",
-        "fixed-choice-dist2",
-        distractors[1] || "",
-        "ダミー選択肢2"
-    ));
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = inputClass;
+    input.value = value || "";
+    input.placeholder = placeholder;
 
-    list.appendChild(choicesRow);
+    // Force strict box model
+    input.style.display = 'block';
+    input.style.width = '100%';
+    input.style.boxSizing = 'border-box'; // Critical for padding
+    input.style.padding = '10px';
+    input.style.fontSize = '1rem';
+    input.style.border = '1px solid #cbd5e1';
+    input.style.borderRadius = '6px';
+    input.style.outline = 'none';
 
-    if (addSegmentBtn) addSegmentBtn.style.display = 'none';
+    if (styles.bg) input.style.backgroundColor = styles.bg;
+    if (styles.borderColor) input.style.borderColor = styles.borderColor;
+    if (styles.borderWidth) input.style.borderWidth = styles.borderWidth;
+
+    row.appendChild(label);
+    row.appendChild(input);
+    return row;
+};
+
+// 1. Prefix
+list.appendChild(createRow(
+    "① 問題文：前半部分 (固定テキスト)",
+    "text-input fixed-prefix",
+    prefix,
+    "例：基本測量の測量成果を"
+));
+
+// 2. Target
+list.appendChild(createRow(
+    "② 問題文：訂正箇所 (ボタンになる部分)",
+    "text-input fixed-target",
+    targetSeg.text,
+    "例：国土地理院の長の承認",
+    { rowClass: 'interactive', bg: '#eff6ff', borderColor: '#3b82f6', labelColor: '#1d4ed8' }
+));
+
+// 3. Suffix
+list.appendChild(createRow(
+    "③ 問題文：後半部分 (固定テキスト)",
+    "text-input fixed-suffix",
+    suffix,
+    "例：を得なければならない。"
+));
+
+// 4. Choices Container
+const choicesRow = document.createElement('div');
+choicesRow.style.display = 'block';
+choicesRow.style.backgroundColor = '#f0fdf4';
+choicesRow.style.padding = '15px';
+choicesRow.style.marginTop = '20px';
+choicesRow.style.border = '1px solid #bbf7d0';
+choicesRow.style.borderRadius = '8px';
+
+const choicesTitle = document.createElement('div');
+choicesTitle.textContent = "▼ 選択肢設定";
+choicesTitle.style.fontWeight = 'bold';
+choicesTitle.style.fontSize = '1rem';
+choicesTitle.style.color = '#15803d';
+choicesTitle.style.borderBottom = '2px solid #bbf7d0';
+choicesTitle.style.paddingBottom = '8px';
+choicesTitle.style.marginBottom = '15px';
+choicesRow.appendChild(choicesTitle);
+
+// Prepare options
+const allOpts = targetSeg.options || [];
+const correctVal = targetSeg.correctAnswer || "";
+let distractors = [];
+if (correctVal) {
+    distractors = allOpts.filter(o => o !== correctVal);
+} else {
+    distractors = [...allOpts];
+}
+
+// Choice 1 (Correct)
+const cRow = createRow(
+    "選択肢① (正解)",
+    "fixed-choice-correct",
+    correctVal,
+    "正しい言葉を入力",
+    { labelColor: '#15803d', borderColor: '#86efac', borderWidth: '2px', bg: '#ffffff' }
+);
+cRow.querySelector('input').style.backgroundColor = '#f0fdf4';
+choicesRow.appendChild(cRow);
+
+// Choice 2 (Distractor 1)
+choicesRow.appendChild(createRow(
+    "選択肢② (ダミー)",
+    "fixed-choice-dist1",
+    distractors[0] || "",
+    "ダミー選択肢1"
+));
+
+// Choice 3 (Distractor 2)
+choicesRow.appendChild(createRow(
+    "選択肢③ (ダミー)",
+    "fixed-choice-dist2",
+    distractors[1] || "",
+    "ダミー選択肢2"
+));
+
+list.appendChild(choicesRow);
+
+if (addSegmentBtn) addSegmentBtn.style.display = 'none';
 }
