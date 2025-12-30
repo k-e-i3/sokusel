@@ -27,20 +27,23 @@ class DriveClient {
                     await window.gapi.client.init({});
                     await window.gapi.client.load('drive', 'v3');
 
-                    // Try silent login (prompt: 'none' for auto-refresh if already authorized)
+                    // 1. Initialize Token Client
                     this.tokenClient = window.google.accounts.oauth2.initTokenClient({
                         client_id: CLIENT_ID,
                         scope: SCOPES,
                         callback: (resp) => this.handleAuthResponse(resp),
-                        prompt: '' // Empty string allows auto-select if only one account
+                        prompt: ''
                     });
 
-                    // Attempt silent token refresh
-                    this.onStatusChange("🔄 自動ログイン試行中...");
+                    // 2. CHECK if we have a valid session implicitly?
+                    // OAuth 2.0 Identity Services doesn't persist tokens automatically in the same way.
+                    // But we can try to restore previous state or just prompt 'none'.
+
+                    this.onStatusChange("🔄 ログイン状態を確認中...");
                     try {
+                        // Attempt silent login to restore session if possible
                         this.tokenClient.requestAccessToken({ prompt: 'none' });
-                    } catch (silentErr) {
-                        // Silent login failed, show manual login prompt
+                    } catch (e) {
                         this.onStatusChange("🔐 Gボタンでログイン");
                         this.updateLoginStatus(false);
                     }
@@ -53,7 +56,7 @@ class DriveClient {
 
         } catch (err) {
             console.error("System Init Error:", err);
-            this.onStatusChange("❌ オフライン - ローカルデータを使用");
+            this.onStatusChange("❌ オフラインモード");
         }
     }
 
@@ -76,37 +79,40 @@ class DriveClient {
 
     login() {
         if (this.tokenClient) {
-            this.tokenClient.requestAccessToken();
+            // If we are strictly re-logging in, maybe force prompt?
+            // prompt: 'select_account' can be forced if needed.
+            this.tokenClient.requestAccessToken({ prompt: 'select_account' });
         }
     }
 
     updateLoginStatus(isLoggedIn) {
         const statusHtml = isLoggedIn
-            ? '<span style="color:#4ade80;">🟢 ログイン済み</span>'
-            : '<span style="color:#fbbf24;">⚪ 未ログイン</span>';
+            ? '<span style="color:#4ade80; font-weight:bold;">🟢 ログイン中</span>'
+            : '<span style="color:#fbbf24; font-weight:bold;">⚪ 未ログイン</span>';
 
         // Update Start Screen
         const loginStatusEl = document.getElementById('login-status');
         if (loginStatusEl) loginStatusEl.innerHTML = statusHtml;
 
-        // Update Editor Header
+        // Update Editor Header (The detailed request)
         const editorLoginStatusEl = document.getElementById('editor-login-status');
-        if (editorLoginStatusEl) editorLoginStatusEl.innerHTML = statusHtml;
-
-        // If we want a reliable indicator in the app header too?
-        // Let's assume we might urge the user to add one later if needed, 
-        // but for now Editor and Start Screen are the critical points.
+        if (editorLoginStatusEl) {
+            editorLoginStatusEl.innerHTML = statusHtml;
+            // Ensure it's visible
+            editorLoginStatusEl.style.display = 'inline-block';
+        }
     }
 
     handleAuthResponse(r) {
         if (r.error) {
-            this.onStatusChange("認証エラー: " + r.error);
+            console.warn("Auth Error or Cancel:", r);
+            this.onStatusChange("ログイン未完了");
             this.updateLoginStatus(false);
             return;
         }
         this.accessToken = r.access_token;
         this.updateLoginStatus(true);
-        this.onStatusChange("✅ 認証成功 - 同期開始...");
+        this.onStatusChange("✅ 認証成功 - データ同期中...");
         this.initDriveResources();
     }
 
@@ -179,7 +185,7 @@ class DriveClient {
     }
 
     async checkFile(fileName, defaultContent) {
-        // More robust query: exact name, not trashed, in the specific folder
+        // Strict check: Exact name, not trashed, in correct folder. Newest first.
         const qFile = `name='${fileName}' and '${this.folderId}' in parents and trashed=false`;
 
         try {
@@ -190,13 +196,14 @@ class DriveClient {
 
             if (dataFile.files && dataFile.files.length > 0) {
                 // File exists!
-                console.log(`File matched: ${fileName} (ID: ${dataFile.files[0].id})`);
+                const file = dataFile.files[0];
+                console.log(`File matched: ${fileName} (ID: ${file.id})`);
                 this.onStatusChange(`${fileName}を確認`);
 
-                // CRITICAL: If strictly multiple files found, maybe warn or clean up? 
-                // For now, we just use the newest one (first one due to orderBy)
+                // Warn about duplicates but stick to the newest one
                 if (dataFile.files.length > 1) {
-                    console.warn(`Duplicate files found for ${fileName}. Using the most recent one.`);
+                    console.warn(`Duplicate files found for ${fileName}. Using the most recent one (ID: ${file.id}).`);
+                    // Optional: We could delete older ones here, but maybe risky.
                 }
             } else {
                 // File does not exist, create it
@@ -221,22 +228,24 @@ class DriveClient {
         form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
         form.append('file', new Blob([content], { type: 'application/json' }));
 
-        await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
             method: 'POST',
             headers: { Authorization: `Bearer ${this.accessToken}` },
             body: form
         });
+        const file = await res.json();
+        console.log(`Created ${fileName} (ID: ${file.id})`);
     }
 
     async loadData(fileName) {
         if (!this.folderId || !this.accessToken) {
             if (!this.accessToken) {
-                this.onStatusChange("⚠️ ログイン待機中... (Gボタン)");
+                this.onStatusChange("⚠️ ログイン待機中...");
             }
             return null;
         }
         try {
-            // Find file ID (Newest first)
+            // Find file ID (Strictly newest)
             const qFile = `name='${fileName}' and '${this.folderId}' in parents and trashed=false`;
             const resFile = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qFile)}&orderBy=modifiedTime desc&fields=files(id,modifiedTime,size)`, {
                 headers: {
@@ -248,10 +257,6 @@ class DriveClient {
 
             if (dataFile.files?.length > 0) {
                 const file = dataFile.files[0];
-
-                // Safety Check: If remote file is empty (size 0) or very small, might be corrupted.
-                // But JSON [] is small too.
-
                 const ts = Date.now();
                 const contentRes = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&t=${ts}`, {
                     headers: {
@@ -260,15 +265,12 @@ class DriveClient {
                     }
                 });
                 const content = await contentRes.json();
-
-                // Check if we loaded an empty array which might overwrite good local data?
-                // For now, source of truth is Drive. 
                 return { data: content, modifiedTime: file.modifiedTime };
             }
             return null;
         } catch (e) {
             console.error(`Load error ${fileName}`, e);
-            this.onStatusChange("❌ 読み込みエラー: " + e.message);
+            this.onStatusChange("❌ 読込エラー: " + fileName);
             return null;
         }
     }
@@ -281,16 +283,18 @@ class DriveClient {
         try {
             this.onStatusChange(`${fileName}を保存中...`);
 
-            // Find file ID (Strictly newest)
+            // 1. Check for basic existence First
             const qFile = `name='${fileName}' and '${this.folderId}' in parents and trashed=false`;
             const resFile = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(qFile)}&orderBy=modifiedTime desc`, {
                 headers: { Authorization: `Bearer ${this.accessToken}` }
             });
             const dataFile = await resFile.json();
 
-            if (dataFile.files?.length > 0) {
-                // Update existing (PATCH)
+            if (dataFile.files && dataFile.files.length > 0) {
+                // 2. Update existing (PATCH)
                 const fileId = dataFile.files[0].id;
+                console.log(`Overwriting existing ${fileName} (ID: ${fileId})`);
+
                 await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
                     method: 'PATCH',
                     headers: {
@@ -299,9 +303,9 @@ class DriveClient {
                     },
                     body: content
                 });
-                console.log(`Updated ${fileName} (ID: ${fileId})`);
             } else {
-                // Create new if really missing
+                // 3. Create new ONLY if absolutely missing
+                console.log(`Creating new ${fileName} (No existing file found)`);
                 await this.createFile(fileName, data);
             }
 
@@ -309,37 +313,13 @@ class DriveClient {
             const timestamp = new Date().toLocaleString('ja-JP');
             this.onStatusChange(`✅ 保存完了 (${timestamp})`);
 
+            // Explicit alert for manual saves (optional context check could be better)
+            // For now, we rely on the UI calling this method to interpret success.
+
         } catch (e) {
             console.error("Save error", e);
             this.onStatusChange("❌ 保存失敗: " + e.message);
-            // Re-throw for caller handling (alerts)
             throw e;
-        }
-    }
-    headers: { Authorization: `Bearer ${this.accessToken }`, 'Content-Type': 'application/json' },
-                    body: content
-                });
-            } else {
-                // Create
-                const metadata = { name: fileName, parents: [this.folderId] };
-                const boundary = '-------314159265358979323846';
-                const body = `--${ boundary } \nContent - Type: application / json; charset = UTF - 8\n\n${ JSON.stringify(metadata) } \n--${ boundary } \nContent - Type: application / json\n\n${ content } \n--${ boundary } --`;
-
-                await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-                    method: 'POST',
-                    headers: { Authorization: `Bearer ${ this.accessToken } `, 'Content-Type': `multipart / related; boundary = ${ boundary } ` },
-                    body: body
-                });
-            }
-            this.onStatusChange("✅ 保存完了: " + fileName);
-            // Explicit Feedback as requested
-            if (fileName === 'questions.json') {
-                alert(`Google Driveに問題データを保存しました！\nファイル名: ${ fileName } \n時刻: ${ new Date().toLocaleTimeString() } `);
-            }
-        } catch (e) {
-            console.error("Save error", e);
-            this.onStatusChange("❌ 保存失敗");
-            alert(`Google Driveへの保存に失敗しました。\nエラー: ${ e.message } `);
         }
     }
 }
@@ -623,37 +603,37 @@ function initQuestion() {
     let accText = "";
     if (answered > 0) {
         const rate = Math.round((score / answered) * 100);
-        accText = ` (正答率: ${ rate } %)`;
+        accText = ` (正答率: ${rate} %)`;
     }
-    if (progressDisplay) progressDisplay.textContent = `Q${ currentQIndex + 1 } / ${maxQ}${accText}`;
+    if (progressDisplay) progressDisplay.textContent = `Q${currentQIndex + 1} / ${maxQ}${accText}`;
 
-// Feature 4: Display ID
-const idBadge = document.getElementById('question-id-display');
-if (idBadge) idBadge.textContent = `ID: ${q.id}`;
+    // Feature 4: Display ID
+    const idBadge = document.getElementById('question-id-display');
+    if (idBadge) idBadge.textContent = `ID: ${q.id}`;
 
-if (instructionText) instructionText.textContent = q.instruction || "誤っている箇所を訂正しなさい。";
+    if (instructionText) instructionText.textContent = q.instruction || "誤っている箇所を訂正しなさい。";
 
-currentSegments = JSON.parse(JSON.stringify(q.segments));
+    currentSegments = JSON.parse(JSON.stringify(q.segments));
 
-// Feature: Randomize Problem Text with Distractors (Memory Training)
-// For each interactive segment, if it's not already correct (or maybe we force it to be wrong for the game?), 
-// pick a RANDOM WRONG option to display as the initial text.
-// This forces the user to recognize it's wrong, rather than memorizing "X matches Y".
-currentSegments.forEach(seg => {
-    if (seg.type === 'interactive' && seg.options && seg.options.length >= 2) {
-        // Find distractors (options that are NOT the correct answer)
-        const distractors = seg.options.filter(opt => opt !== seg.correctAnswer);
+    // Feature: Randomize Problem Text with Distractors (Memory Training)
+    // For each interactive segment, if it's not already correct (or maybe we force it to be wrong for the game?), 
+    // pick a RANDOM WRONG option to display as the initial text.
+    // This forces the user to recognize it's wrong, rather than memorizing "X matches Y".
+    currentSegments.forEach(seg => {
+        if (seg.type === 'interactive' && seg.options && seg.options.length >= 2) {
+            // Find distractors (options that are NOT the correct answer)
+            const distractors = seg.options.filter(opt => opt !== seg.correctAnswer);
 
-        if (distractors.length > 0) {
-            // Pick random distractor
-            const randomDistractor = distractors[Math.floor(Math.random() * distractors.length)];
-            // Set the displayed text to this wrong answer
-            seg.text = randomDistractor;
+            if (distractors.length > 0) {
+                // Pick random distractor
+                const randomDistractor = distractors[Math.floor(Math.random() * distractors.length)];
+                // Set the displayed text to this wrong answer
+                seg.text = randomDistractor;
+            }
         }
-    }
-});
+    });
 
-renderSentence();
+    renderSentence();
 }
 
 function renderSentence() {
@@ -1606,249 +1586,172 @@ function renderSegmentEditor(segments) {
     let targetSeg = { text: "", correctAnswer: "", options: [] };
     let suffix = "";
 
-    // Attempt to map based on V7 structure
     const interactIdx = segments.findIndex(s => s.type === 'interactive');
     if (interactIdx !== -1) {
         targetSeg = segments[interactIdx];
         prefix = segments.slice(0, interactIdx).map(s => s.text).join("");
         suffix = segments.slice(interactIdx + 1).map(s => s.text).join("");
     } else {
-        // Fallback or purely static? 
-        // If no interactive, maybe just all text in prefix?
         prefix = segments.map(s => s.text).join("");
     }
 
-    // Helper to create input row
-    const createRow = (label, value, isTarget) => {
+    // Helper for creating labelled rows with strict layout
+    const createRow = (labelText, inputClass, value, placeholder, styles = {}) => {
         const row = document.createElement('div');
+        row.style.display = 'block';
         row.style.marginBottom = '15px';
+        if (styles.rowClass) row.className = styles.rowClass;
 
-        const lbl = document.createElement('div');
-        lbl.textContent = label;
-        lbl.style.fontSize = '0.9rem';
-        lbl.style.fontWeight = 'bold';
-        lbl.style.marginBottom = '5px';
-        lbl.style.color = isTarget ? '#e11d48' : '#64748b'; // Red for target
+        const label = document.createElement('div');
+        label.style.display = 'block';
+        label.style.fontWeight = 'bold';
+        label.style.marginBottom = '6px';
+        label.style.fontSize = '0.95rem';
+        label.style.color = styles.labelColor || '#334155';
+        label.textContent = labelText;
 
         const input = document.createElement('input');
         input.type = 'text';
-        input.value = value;
-        input.className = isTarget ? 'target-text-input' : 'static-text-input'; // Marker classes
+        input.className = inputClass; // IMPORTANT: Class used by getSegments
+        input.value = value || "";
+        input.placeholder = placeholder;
+
+        input.style.display = 'block';
         input.style.width = '100%';
-        input.style.padding = '8px';
+        input.style.boxSizing = 'border-box';
+        input.style.padding = '10px';
+        input.style.fontSize = '1rem';
         input.style.border = '1px solid #cbd5e1';
-        input.style.borderRadius = '4px';
+        input.style.borderRadius = '6px';
+        input.style.outline = 'none';
 
-        // Bind Preview Update
-        input.addEventListener('input', updatePreviewText);
+        if (styles.bg) input.style.backgroundColor = styles.bg;
+        if (styles.borderColor) input.style.borderColor = styles.borderColor;
 
-        row.appendChild(lbl);
+        // BIND PREVIEW UPDATE
+        input.addEventListener('input', updatePreview);
+
+        row.appendChild(label);
         row.appendChild(input);
-        return { row, input };
+        return row;
     };
 
-    // 1. Prefix Row
-    const prefixRow = createRow("① 前文 (Prefix)", prefix, false);
-    list.appendChild(prefixRow.row);
+    // 1. Prefix
+    list.appendChild(createRow(
+        "① 前文 (Prefix)",
+        "fixed-prefix",
+        prefix,
+        "例：基本測量の測量成果を"
+    ));
 
-    // 2. Target Row
-    const targetRow = createRow("② 問題箇所 (Target)", targetSeg.text, true);
-    list.appendChild(targetRow.row);
+    // 2. Target - MUST HAVE CLASS 'fixed-target'
+    list.appendChild(createRow(
+        "② 問題箇所 (Target)",
+        "fixed-target",
+        targetSeg.text,
+        "例：国土地理院の長の承認",
+        { rowClass: 'interactive', bg: '#eff6ff', borderColor: '#3b82f6', labelColor: '#1d4ed8' }
+    ));
 
-    // 3. Choices Row (Horizontal)
-    const choiceRow = document.createElement('div');
-    choiceRow.style.marginBottom = '15px';
-    choiceRow.innerHTML = `<div style="font-size:0.9rem; font-weight:bold; margin-bottom:5px; color:#e11d48;">③ 選択肢 (正解は左端)</div>`;
-    const choiceContainer = document.createElement('div');
-    choiceContainer.style.display = 'flex';
-    choiceContainer.style.gap = '5px';
+    // 3. Suffix
+    list.appendChild(createRow(
+        "③ 後文 (Suffix)",
+        "fixed-suffix",
+        suffix,
+        "例：を得なければならない。"
+    ));
 
-    // Ensure we have 3 inputs
-    const opts = targetSeg.options && targetSeg.options.length ? targetSeg.options : [targetSeg.correctAnswer || "", "", ""];
-    // Make sure index 0 is correct answer logic usually? 
-    // Data model: options[0] is usually Clean/Correct one? 
-    // In our app logic, options[0] is often the correct one if we shuffle later.
-    // Let's assume user inputs: [Correct, Wrong1, Wrong2]
+    // 4. Choices Container
+    const choicesRow = document.createElement('div');
+    choicesRow.style.display = 'block';
+    choicesRow.style.backgroundColor = '#f0fdf4';
+    choicesRow.style.padding = '15px';
+    choicesRow.style.marginTop = '20px';
+    choicesRow.style.border = '1px solid #bbf7d0';
+    choicesRow.style.borderRadius = '8px';
 
-    for (let i = 0; i < 3; i++) {
-        const optInput = document.createElement('input');
-        optInput.type = 'text';
-        optInput.value = opts[i] || "";
-        optInput.className = 'choice-input';
-        optInput.placeholder = i === 0 ? "正解" : "誤答";
-        optInput.style.flex = "1";
-        optInput.style.padding = "8px";
-        optInput.style.border = i === 0 ? "2px solid #86efac" : "1px solid #cbd5e1"; // Green border for correct
-        choiceContainer.appendChild(optInput);
+    const choicesTitle = document.createElement('div');
+    choicesTitle.textContent = "▼ 選択肢設定";
+    choicesTitle.style.fontWeight = 'bold';
+    choicesTitle.style.fontSize = '1rem';
+    choicesTitle.style.color = '#15803d';
+    choicesTitle.style.borderBottom = '2px solid #bbf7d0';
+    choicesTitle.style.paddingBottom = '8px';
+    choicesTitle.style.marginBottom = '15px';
+    choicesRow.appendChild(choicesTitle);
+
+    const allOpts = targetSeg.options || [];
+    const correctVal = targetSeg.correctAnswer || "";
+    let distractors = [];
+    if (correctVal) {
+        distractors = allOpts.filter(o => o !== correctVal);
+    } else {
+        distractors = [...allOpts];
     }
-    choiceRow.appendChild(choiceContainer);
-    list.appendChild(choiceRow);
 
-    // 4. Suffix Row
-    const suffixRow = createRow("④ 後文 (Suffix)", suffix, false);
-    list.appendChild(suffixRow.row);
+    // Choice 1 (Correct)
+    const cRow = createRow(
+        "選択肢① (正解)",
+        "fixed-choice-correct",
+        correctVal,
+        "正しい言葉を入力",
+        { labelColor: '#15803d', borderColor: '#86efac', bg: '#ffffff' }
+    );
+    cRow.querySelector('input').style.backgroundColor = '#f0fdf4';
+    choicesRow.appendChild(cRow);
 
-    // Initial Preview
-    updatePreviewText();
+    // Choice 2
+    choicesRow.appendChild(createRow("選択肢② (ダミー)", "fixed-choice-dist1", distractors[0] || "", "ダミー1"));
+
+    // Choice 3
+    choicesRow.appendChild(createRow("選択肢③ (ダミー)", "fixed-choice-dist2", distractors[1] || "", "ダミー2"));
+
+    list.appendChild(choicesRow);
+
+    const addSegmentBtn = document.getElementById('add-segment-btn');
+    if (addSegmentBtn) addSegmentBtn.style.display = 'none';
+
+    // Initial Update
+    updatePreview();
 }
 
-function updatePreviewText() {
-    const list = document.getElementById('segment-list');
-    if (!list) return;
-    const inputs = list.querySelectorAll('input[type="text"]');
-    // Based on order in createRow: 
-    // 0: Prefix
-    // 1: Target
-    // 2,3,4: Choices (not part of sentence text usually, unless we mean the question text itself?)
-    // 5: Suffix
+function updatePreview() {
+    const previewEl = document.getElementById('segment-preview');
+    if (!previewEl) return;
 
-    // Actually using classes is safer
-    const statics = list.querySelectorAll('.static-text-input');
-    const targets = list.querySelectorAll('.target-text-input');
+    // We can rely on getSegmentsFromEditor to build the object!
+    try {
+        const segs = getSegmentsFromEditor();
+        // Format as JSON or simplified text
+        // User asked for "raw text preview" or "text directly visible".
+        // Let's show the Full Sentence constructed.
 
-    // If strict order: Prefix -> Target -> Suffix
-    // Prefix is statics[0], Suffix is statics[1] ?? 
-    // No, logic above appended Prefix, Target, Choices, Suffix.
-    // So inputs array: [Prefix, Target, Choice1, Choice2, Choice3, Suffix]
+        const fullText = segs.map(s => s.text).join("");
+        const interactive = segs.find(s => s.type === 'interactive');
 
-    if (inputs.length >= 6) {
-        const p = inputs[0].value;
-        const t = inputs[1].value;
-        const s = inputs[inputs.length - 1].value; // Last one
+        let html = `<div style="margin-bottom:8px; font-weight:bold; color:#334155;">プレビュー:</div>`;
+        html += `<div style="font-size:1.1rem; line-height:1.5; color:#0f172a; background:#fff; padding:10px; border-radius:4px; border:1px solid #cbd5e1;">`;
 
-        const previewEl = document.getElementById('segment-preview');
-        if (previewEl) {
-            // Highlight target in red?
-            previewEl.innerHTML = `${p}<span style="color:#e11d48; font-weight:bold; border-bottom:2px solid #e11d48;">${t}</span>${s}`;
+        segs.forEach(s => {
+            if (s.type === 'interactive') {
+                html += `<span style="color:#e11d48; font-weight:bold; border-bottom:2px solid #e11d48; padding-bottom:1px;">${s.text}</span>`;
+            } else {
+                html += `<span>${s.text}</span>`;
+            }
+        });
+        html += `</div>`;
+
+        // JSON debug (Optional, but requested "Raw"?)
+        // Let's add a small JSON block too for technical verification
+        html += `<div style="margin-top:8px; display:flex; gap:10px; align-items:center;">`;
+        if (interactive) {
+            html += `<span style="font-size:0.8rem; color:#15803d;">✅ 正解: ${interactive.correctAnswer || '(未入力)'}</span>`;
         }
+        html += `</div>`;
+
+        previewEl.innerHTML = html;
+
+    } catch (e) {
+        console.error(e);
     }
-}
-prefix = segments.map(s => s.text).join("");
-    }
-
-// Helper for creating labelled rows with strict layout
-const createRow = (labelText, inputClass, value, placeholder, styles = {}) => {
-    const row = document.createElement('div');
-    // Force block layout and spacing
-    row.style.display = 'block';
-    row.style.marginBottom = '15px';
-    if (styles.rowClass) row.className = styles.rowClass;
-
-    const label = document.createElement('div'); // div instead of label
-    label.style.display = 'block';
-    label.style.fontWeight = 'bold';
-    label.style.marginBottom = '6px';
-    label.style.fontSize = '0.95rem';
-    label.style.color = styles.labelColor || '#334155';
-    label.textContent = labelText;
-
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.className = inputClass;
-    input.value = value || "";
-    input.placeholder = placeholder;
-
-    // Force strict box model
-    input.style.display = 'block';
-    input.style.width = '100%';
-    input.style.boxSizing = 'border-box'; // Critical for padding
-    input.style.padding = '10px';
-    input.style.fontSize = '1rem';
-    input.style.border = '1px solid #cbd5e1';
-    input.style.borderRadius = '6px';
-    input.style.outline = 'none';
-
-    if (styles.bg) input.style.backgroundColor = styles.bg;
-    if (styles.borderColor) input.style.borderColor = styles.borderColor;
-    if (styles.borderWidth) input.style.borderWidth = styles.borderWidth;
-
-    row.appendChild(label);
-    row.appendChild(input);
-    return row;
-};
-
-// 1. Prefix
-list.appendChild(createRow(
-    "① 問題文：前半部分 (固定テキスト)",
-    "text-input fixed-prefix",
-    prefix,
-    "例：基本測量の測量成果を"
-));
-
-// 2. Target
-list.appendChild(createRow(
-    "② 問題文：訂正箇所 (ボタンになる部分)",
-    "text-input fixed-target",
-    targetSeg.text,
-    "例：国土地理院の長の承認",
-    { rowClass: 'interactive', bg: '#eff6ff', borderColor: '#3b82f6', labelColor: '#1d4ed8' }
-));
-
-// 3. Suffix
-list.appendChild(createRow(
-    "③ 問題文：後半部分 (固定テキスト)",
-    "text-input fixed-suffix",
-    suffix,
-    "例：を得なければならない。"
-));
-
-// 4. Choices Container
-const choicesRow = document.createElement('div');
-choicesRow.style.display = 'block';
-choicesRow.style.backgroundColor = '#f0fdf4';
-choicesRow.style.padding = '15px';
-choicesRow.style.marginTop = '20px';
-choicesRow.style.border = '1px solid #bbf7d0';
-choicesRow.style.borderRadius = '8px';
-
-const choicesTitle = document.createElement('div');
-choicesTitle.textContent = "▼ 選択肢設定";
-choicesTitle.style.fontWeight = 'bold';
-choicesTitle.style.fontSize = '1rem';
-choicesTitle.style.color = '#15803d';
-choicesTitle.style.borderBottom = '2px solid #bbf7d0';
-choicesTitle.style.paddingBottom = '8px';
-choicesTitle.style.marginBottom = '15px';
-choicesRow.appendChild(choicesTitle);
-
-// Prepare options
-const allOpts = targetSeg.options || [];
-const correctVal = targetSeg.correctAnswer || "";
-let distractors = [];
-if (correctVal) {
-    distractors = allOpts.filter(o => o !== correctVal);
-} else {
-    distractors = [...allOpts];
-}
-
-// Choice 1 (Correct)
-const cRow = createRow(
-    "選択肢① (正解)",
-    "fixed-choice-correct",
-    correctVal,
-    "正しい言葉を入力",
-    { labelColor: '#15803d', borderColor: '#86efac', borderWidth: '2px', bg: '#ffffff' }
-);
-cRow.querySelector('input').style.backgroundColor = '#f0fdf4';
-choicesRow.appendChild(cRow);
-
-// Choice 2 (Distractor 1)
-choicesRow.appendChild(createRow(
-    "選択肢② (ダミー)",
-    "fixed-choice-dist1",
-    distractors[0] || "",
-    "ダミー選択肢1"
-));
-
-// Choice 3 (Distractor 2)
-choicesRow.appendChild(createRow(
-    "選択肢③ (ダミー)",
-    "fixed-choice-dist2",
-    distractors[1] || "",
-    "ダミー選択肢2"
-));
-
-list.appendChild(choicesRow);
-
-if (addSegmentBtn) addSegmentBtn.style.display = 'none';
 }
