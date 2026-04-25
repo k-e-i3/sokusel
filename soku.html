@@ -1,0 +1,838 @@
+```html
+<!DOCTYPE html>
+<html lang="ja" class="text-[14px]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>測量士午後 必須No.1 徹底対策アプリ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
+        body { font-family: 'Noto Sans JP', sans-serif; }
+        .progress-transition { transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
+        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .toggle-checkbox:checked { right: 0; border-color: #10b981; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #10b981; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen p-3 md:p-6 pb-24">
+    <div class="max-w-4xl mx-auto">
+        <!-- ヘッダー -->
+        <header class="mb-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+            <div>
+                <h1 class="text-lg md:text-xl font-black text-slate-900 flex items-center gap-2">
+                    <i data-lucide="book-open-check" class="text-emerald-600 w-6 h-6"></i>
+                    測量士午後 必須No.1 対策ツール
+                </h1>
+                <p class="text-slate-500 mt-1 text-xs md:text-sm font-medium">厳選過去問100題・正解で自動非表示・AIチャット機能</p>
+            </div>
+            <button onclick="showResetModal()" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 rounded-lg text-xs font-bold transition-colors border border-slate-200 hover:border-rose-200">
+                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> 学習リセット
+            </button>
+        </header>
+
+        <!-- コントロールパネル -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-5 sticky top-2 z-10">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 gap-3">
+                <div class="flex flex-wrap gap-1.5" id="filter-container">
+                    <!-- フィルターボタン -->
+                </div>
+                
+                <div class="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
+                    <i data-lucide="eye-off" class="w-3.5 h-3.5 text-slate-500"></i>
+                    <span class="text-xs font-bold text-slate-700">完璧な問題（正解済み）を隠す</span>
+                    <div class="relative inline-block w-8 mr-1 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" id="hide-mastered-toggle" class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 transition-transform duration-300 ease-in-out" onchange="toggleHideMode(this.checked)"/>
+                        <label for="hide-mastered-toggle" class="toggle-label block overflow-hidden h-4 rounded-full bg-slate-300 cursor-pointer transition-colors duration-300"></label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-between items-end mb-1.5">
+                <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Progress</div>
+                <div class="text-xs font-black text-emerald-700" id="progress-text">0 / 100 完了</div>
+            </div>
+            <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden shadow-inner">
+                <div class="bg-emerald-500 h-full rounded-full progress-transition relative overflow-hidden" id="progress-bar" style="width: 0%"></div>
+            </div>
+        </div>
+
+        <!-- 問題カードエリア -->
+        <div id="question-container" class="min-h-[300px]"></div>
+
+        <!-- ナビゲーション -->
+        <div class="flex justify-between items-center mt-5 bg-white p-3 rounded-xl shadow-sm border border-slate-200" id="nav-container">
+            <button onclick="navigate(-1)" class="flex items-center gap-1.5 px-4 py-2 text-slate-600 hover:bg-slate-100 font-bold rounded-lg transition-colors text-sm">
+                <i data-lucide="chevron-left" class="w-4 h-4"></i> 前へ
+            </button>
+            <div class="flex flex-col items-center">
+                <span class="text-slate-400 text-[10px] font-bold tracking-wider mb-0.5">QUESTION</span>
+                <span class="text-slate-700 font-black text-base" id="question-counter">- / -</span>
+            </div>
+            <button onclick="navigate(1)" class="flex items-center gap-1.5 px-4 py-2 bg-slate-800 text-white hover:bg-slate-700 font-bold rounded-lg transition-colors shadow-sm text-sm">
+                次へ <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- トースト通知 -->
+    <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 translate-y-24 opacity-0 transition-all duration-300 z-50 flex items-center gap-2 px-5 py-2.5 rounded-xl shadow-lg font-bold text-white text-sm min-w-[250px] justify-center">
+        <i id="toast-icon" data-lucide="info" class="w-4 h-4"></i>
+        <span id="toast-message">メッセージ</span>
+    </div>
+
+    <!-- リセット確認モーダル -->
+    <div id="reset-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl p-5 md:p-6 max-w-sm w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="reset-modal-content">
+            <div class="w-10 h-10 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-3">
+                <i data-lucide="alert-triangle" class="w-5 h-5"></i>
+            </div>
+            <h3 class="text-lg font-black mb-1.5 text-slate-800">学習データをリセット</h3>
+            <p class="text-slate-500 mb-6 text-xs font-medium leading-relaxed">これまでの「採点結果」「チャット履歴」「完璧状態」がすべて消去されます。この操作は元に戻せません。</p>
+            <div class="flex gap-2 justify-end">
+                <button onclick="closeResetModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-bold transition-colors">キャンセル</button>
+                <button onclick="executeReset()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-bold transition-colors shadow-sm">すべて消去する</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 過去問ベースの問題データ (全100問) ---
+        const QS = [
+            { id: 1, yr: "過去問", tp: "穴埋め", q: "測量法第一条：「この法律は、国若しくは【ア】が費用の全部若しくは一部を負担し、若しくは補助して実施する土地の測量又はこれらの測量の結果を利用する土地の測量について、その実施の基準及び実施に必要な権能を定め、測量の【イ】を除き、並びに測量の【ウ】を確保するとともに、測量業を営む者の登録の実施、業務の規制等により、測量業の適正な運営とその健全な発達を図り、もつて各種測量の調整及び測量制度の改善発達に資することを目的とする。」", ht: "アは地方公共団体など、イは無駄をなくすこと、ウは測量で最も重要な品質です。", md: "ア：公共団体、イ：重複、ウ：正確さ" },
+            { id: 2, yr: "過去問", tp: "穴埋め", q: "測量法第三条：「この法律において「測量」とは、【ア】をいい、【イ】及び測量用写真の撮影を含むものとする。」", ht: "測量の対象と、図面を作る作業のことです。", md: "ア：土地の測量、イ：地図の調製" },
+            { id: 3, yr: "過去問", tp: "穴埋め", q: "測量法第四条：「この法律において「基本測量」とは、すべての測量の基礎となる測量で、国土地理院の長の指示をして【ア】が行うものをいう。」", ht: "国の測量行政を司る機関です。", md: "ア：国土地理院" },
+            { id: 4, yr: "過去問", tp: "穴埋め", q: "測量法第五条：「この法律において「公共測量」とは、基本測量以外の測量で、その費用の全部又は一部を【ア】又は【イ】が負担し、又は補助して実施するものをいう。ただし、局地的な測量又は高度の正確さを必要としない測量で政令で定めるものを除く。」", ht: "国と、都道府県や市町村などの総称です。", md: "ア：国、イ：公共団体" },
+            { id: 5, yr: "過去問", tp: "手続き", q: "測量法第六条：「この法律において「基本測量及び公共測量以外の測量」とは、基本測量及び公共測量以外の測量で、基本測量若しくは公共測量の【ア】を使用して実施し、又は基本測量及び公共測量以外の測量で基本測量若しくは公共測量の【ア】を使用して実施したものの【ア】を使用して実施するものをいう。ただし、局地的な測量又は高度の正確さを必要としない測量で政令で定めるものを除く。」\n【ア】に入る共通の語句を答えよ。", ht: "測量を実施して得られた結果（データ等）のことです。", md: "測量成果" },
+            { id: 6, yr: "過去問", tp: "穴埋め", q: "測量法第八条：「この法律において「測量作業機関」とは、【ア】の指示又は委託を受けて測量作業を実施する者をいう。」", ht: "測量を計画する機関のことです。", md: "測量計画機関" },
+            { id: 7, yr: "過去問", tp: "分類", q: "測量法第九条に規定される「測量標」のうち、永久標識に分類されるものを二つ挙げよ。", ht: "ずっと残しておく基準となる石碑や金属標です。", md: "電子基準点、三角点標石、水準点標石などから二つ（水位標、磁気点標石なども可）" },
+            { id: 8, yr: "過去問", tp: "分類", q: "測量法第九条に規定される「測量標」のうち、一時標識に分類されるものを二つ挙げよ。", ht: "測量期間中など一時的に設置される標識です。", md: "測標、標杭など" },
+            { id: 9, yr: "過去問", tp: "分類", q: "測量法第九条に規定される「測量標」のうち、仮設標識に分類されるものを二つ挙げよ。", ht: "観測の時だけ一時的に立てるものです。", md: "標旗、目標など" },
+            { id: 10, yr: "過去問", tp: "穴埋め", q: "測量法第十条：「この法律において「測量成果」とは、当該測量において最終の目的として得た結果をいい、「【ア】」とは、測量成果を得る過程において得た結果をいう。」", ht: "成果を得るための途中経過のデータのことです。", md: "測量記録" },
+            { id: 11, yr: "過去問", tp: "手続き", q: "測量法第十一条：「基本測量の測量成果のうち、地図、空中写真及び磁気データ（電磁的記録のうち、磁気的方法により記録されたものをいう。）の特定の政令で定めるものを複製して他に交付しようとする者は、あらかじめ、【ア】の承認を得なければならない。」", ht: "基本測量の管轄トップです。", md: "国土地理院の長" },
+            { id: 12, yr: "過去問", tp: "手続き", q: "測量法第十四条：「国土地理院の長又はその命じた者若しくは委任を受けた者は、基本測量を実施するために必要があるときは、国、公共団体又は私人の有する土地に立ち入ることができる。（中略）前項の規定により宅地又はかき、さく等で囲まれた土地に立ち入ろうとするときは、あらかじめ、その旨を当該土地の【ア】に通知しなければならない。ただし、あらかじめ通知することが困難であるときは、この限りでない。」", ht: "土地を実際に占有している人のことです。", md: "占有者" },
+            { id: 13, yr: "過去問", tp: "手続き", q: "測量法第十五条：「国土地理院の長又はその命じた者若しくは委任を受けた者は、基本測量を実施するためにやむを得ない必要があるときは、あらかじめ、【ア】の承諾を得て、障害となる植物又はかき、さく等を伐除することができる。 （中略）前項の規定により植物又はかき、さく等を伐除しようとする場合において、【ア】の承諾を得ることが困難であるときは、国土地理院の長又はその命じた者若しくは委任を受けた者は、その所在地の市町村長の許可を受けて、これを伐除することができる。この場合においては、あらかじめ、その【イ】に通知しなければならない。」", ht: "アは持ち主、イは実際にそこにいる人です。", md: "ア：所有者、イ：占有者" },
+            { id: 14, yr: "過去問", tp: "手続き", q: "測量法第十六条：「国土地理院の長又はその命じた者若しくは委任を受けた者は、基本測量を実施するために必要があるときは、公の施設外の国、公共団体又は私人の有する土地若しくは工作物等に測量標を設置することができる。前項の規定により測量標を設置しようとするときは、あらかじめ、当該土地又は工作物等の所有者又は占有者に通知しなければならない。第一項の規定により測量標を設置したときは、国土地理院の長は、遅滞なく、その旨を関係【ア】に通知しなければならない。」", ht: "地域の行政の長です。", md: "市町村長" },
+            { id: 15, yr: "過去問", tp: "穴埋め", q: "測量法第二十一条：「基本測量の測量標を設置したときは、国土地理院の長は、遅滞なく、その旨を関係【ア】に通知しなければならない。」", ht: "設置場所を管轄する地方自治体の長です。", md: "市町村長" },
+            { id: 16, yr: "過去問", tp: "穴埋め", q: "測量法第二十二条：「何人も、国土地理院の長の承諾を得ないで、基本測量の測量標を【ア】し、汚損し、その他その効用を害する行為をしてはならない。」", ht: "場所を動かしてしまうことです。", md: "移転" },
+            { id: 17, yr: "過去問", tp: "記述", q: "測量法第二十三条に基づき、測量標の敷地の所有者又は占有者が、国土地理院の長に対して測量標の移転等を請求することができるのは、どのような場合か。", ht: "測量標があるせいで、その土地の使い道がひどく制限される場合です。", md: "測量標があるために、その敷地の利用が著しく妨げられる場合。" },
+            { id: 18, yr: "過去問", tp: "手続き", q: "測量法第二十七条：「国土地理院の長は、基本測量の測量成果を得たときは、遅滞なく、その旨を【ア】で公告しなければならない。」", ht: "国が発行するお知らせの機関紙です。", md: "官報" },
+            { id: 19, yr: "過去問", tp: "手続き", q: "測量法第二十八条：「基本測量の測量成果及び測量記録の謄本又は抄本の交付を受けようとする者は、国土交通省令で定めるところにより、【ア】に申請をしなければならない。」", ht: "基本測量の実施主体のトップです。", md: "国土地理院の長" },
+            { id: 20, yr: "過去問", tp: "手続き", q: "測量法第二十九条：「基本測量の測量成果のうち、国土地理院の長が官報で公告したものを除くほか、その測量成果を使用して測量を実施しようとする者は、あらかじめ、【ア】の承認を得なければならない。」", ht: "基本測量をつかさどる機関の長です。", md: "国土地理院の長" },
+            { id: 21, yr: "過去問", tp: "穴埋め", q: "測量法第三十二条：「公共測量は、【ア】又は公共測量の測量成果に基いて実施しなければならない。」", ht: "すべての測量の基礎となる測量です。", md: "基本測量" },
+            { id: 22, yr: "過去問", tp: "手続き", q: "測量法第三十三条：「公共測量を実施しようとする測量計画機関は、あらかじめ、当該公共測量において使用する測量機器その他の測量の実施の基準たる作業規程を定め、【ア】の承認を得なければならない。これを変更しようとするときも、同様とする。」", ht: "国の測量行政全体のトップです。国土地理院の長ではありません。", md: "国土交通大臣" },
+            { id: 23, yr: "過去問", tp: "手続き", q: "測量法第三十四条：「測量計画機関は、公共測量を実施しようとするときは、あらかじめ、公共測量実施計画書を【ア】に提出して、その技術的助言を求めなければならない。これを変更しようとするときも、同様とする。」", ht: "技術的なアドバイスをくれる専門機関のトップです。", md: "国土地理院の長" },
+            { id: 24, yr: "過去問", tp: "手続き", q: "測量法第三十六条：「測量計画機関は、公共測量を実施しようとするときは、あらかじめ、測量の地域、期間その他必要な事項を【ア】に通知しなければならない。これを変更しようとするときも、同様とする。」", ht: "基本測量との調整などを行う機関の長です。", md: "国土地理院の長" },
+            { id: 25, yr: "過去問", tp: "記述", q: "測量法第三十七条に基づき、公共測量で設置する測量標（仮設標識を除く。）に表示しなければならない事項を二つ答えよ。", ht: "どんな種類の測量標かと、誰が計画したかを示します。", md: "①公共測量の測量標であること。②測量計画機関の名称。" },
+            { id: 26, yr: "過去問", tp: "穴埋め", q: "測量法第三十八条：「公共測量については、第十四条から第十七条までの規定を準用する。この場合において、第十四条第一項中「国土地理院の長又はその命じた者若しくは委任を受けた者」とあるのは、「【ア】」と読み替えるものとする。」", ht: "公共測量の作業を実施する者です。", md: "測量作業機関" },
+            { id: 27, yr: "過去問", tp: "手続き", q: "測量法第三十九条：「測量計画機関は、測量標（一時標識及び仮設標識を除く。）を設置したときは、遅滞なく、その測量標の所在地の【ア】に通知しなければならない。」", ht: "市町村長ではなく、一つ上の広域自治体の長です。", md: "都道府県知事" },
+            { id: 28, yr: "過去問", tp: "手続き", q: "測量法第四十条：「測量計画機関は、公共測量の測量成果を得たときは、遅滞なく、その【ア】を国土地理院の長に提出しなければならない。」", ht: "原本そのものではなく、コピーです。", md: "写し" },
+            { id: 29, yr: "過去問", tp: "手続き", q: "測量法第四十一条：「国土地理院の長は、前条の規定により測量成果の【ア】の提出を受けたときは、その測量成果が、第三十三条第一項の規定により承認を得た作業規程に従つて得られたものであるかどうか、及び十分な正確さを有するものであるかどうかを審査しなければならない。」\n【ア】に入る語句を答えよ。", ht: "第四十条で提出するもののことです。", md: "写し" },
+            { id: 30, yr: "過去問", tp: "手続き", q: "測量法第四十二条：「国土地理院の長は、前条第一項の規定による審査の結果、その測量成果が十分な正確さを有するものであると認めたときは、その審査の結果を当該測量計画機関に通知するとともに、当該測量成果に関する事項を【ア】で公告しなければならない。」", ht: "基本測量の成果の公表と同じ媒体です。", md: "官報" },
+            { id: 31, yr: "過去問", tp: "手続き", q: "測量法第四十三条：「公共測量の測量成果のうち、地図、空中写真及び磁気データの特定の政令で定めるものを複製して他に交付しようとする者は、あらかじめ、当該【ア】の承認を得なければならない。」", ht: "その公共測量を計画した機関のトップです。", md: "測量計画機関の長" },
+            { id: 32, yr: "過去問", tp: "手続き", q: "測量法第四十四条：「公共測量の測量成果を使用して測量を実施しようとする者は、あらかじめ、当該【ア】の承認を得なければならない。」", ht: "複製と同じく、その公共測量を計画した機関のトップです。", md: "測量計画機関の長" },
+            { id: 33, yr: "過去問", tp: "穴埋め", q: "測量法第四十四条第三項：「測量計画機関の長は、前項の規定により使用の承認の申請があつた場合において、次の各号の一に該当するときは、その承認を【ア】しなければならない。\n一　申請手続が法令に違反している場合\n二　当該測量成果を使用することが測量の正確さを確保する上で適切でない場合」", ht: "申請を断ることです。", md: "拒否" },
+            { id: 34, yr: "過去問", tp: "手続き", q: "測量法第四十五条：「基本測量及び公共測量以外の測量については、第三十六条、第三十七条、第三十九条及び第四十条から前条までの規定を準用する。（中略）前項の場合において、準用される第三十六条、第三十七条第二項、第三十九条、第四十条、第四十二条第二項、第四十三条第一項及び前条の規定中「測量計画機関」とあるのは、「【ア】」と読み替えるものとする。」", ht: "基本測量でも公共測量でもない測量を実施する機関です。", md: "測量実施機関" },
+            { id: 35, yr: "過去問", tp: "記述", q: "測量法第四十九条に基づき、測量士の職務を簡潔に述べよ。", ht: "測量の計画を作り、また実施する役割です。", md: "測量士は、測量に関する計画を作製し、又は実施する。" },
+            { id: 36, yr: "過去問", tp: "記述", q: "測量法第四十九条に基づき、測量士補の職務を簡潔に述べよ。", ht: "測量士が作った計画に従って作業する役割です。", md: "測量士補は、測量士の作製した計画に従い測量に従事する。" },
+            { id: 37, yr: "過去問", tp: "手続き", q: "測量法第五十五条第一項：「測量業を営もうとする者は、【ア】の登録を受けなければならない。」", ht: "国土交通省の長です。", md: "国土交通大臣" },
+            { id: 38, yr: "過去問", tp: "数値", q: "測量法第五十五条の二：「前条第一項の登録の有効期間は、【ア】年とする。」\n【ア】に入る数値を答えよ。", ht: "建設業などと同じ期間です。", md: "5" },
+            { id: 39, yr: "過去問", tp: "穴埋め", q: "測量法第五十五条の三：「前条第一項の規定による更新の登録を受けようとする者は、同項の登録の有効期間満了の日の【ア】日前までに登録申請書を提出しなければならない。」", ht: "約1ヶ月前です。", md: "30" },
+            { id: 40, yr: "過去問", tp: "手続き", q: "測量法第五十五条の十三：「測量業者は、その【ア】ごとに、測量士を一人以上置かなければならない。」", ht: "会社全体の単位ではなく、事業を行う拠点ごとのことです。", md: "営業所" },
+            { id: 41, yr: "過去問", tp: "穴埋め", q: "測量法第五十六条の二：「測量業者は、その請け負つた測量を【ア】して他人に請け負わせてはならない。ただし、あらかじめ注文者の【イ】による承諾を得た場合には、この限りでない。」", ht: "アは丸投げのこと、イは口約束ではない証拠の形です。", md: "ア：一括、イ：書面" },
+            { id: 42, yr: "過去問", tp: "手続き", q: "測量法第五十六条の六：「測量業者は、その業務の改善又は測量技術の向上のために必要があるときは、【ア】に対して、必要な助言又は勧告を求めることができる。」", ht: "測量業の登録先である国の長です。", md: "国土交通大臣" },
+            { id: 43, yr: "過去問", tp: "手続き", q: "測量法第六十一条：「次の各号のいずれかに該当する者は、一年以下の懲役又は【ア】円以下の罰金に処する。\n一　第二十二条（第三十八条及び第四十五条第一項において準用する場合を含む。）の規定に違反して測量標を移転し、汚損し、その他その効用を害する行為をした者」\n【ア】に入る数値を答えよ。（ヒント：百万円）", ht: "大きな金額の罰金が課せられます。", md: "100万（百万円）" },
+            { id: 44, yr: "過去問", tp: "穴埋め", q: "作業規程の準則（目的）第一条：「この準則は、測量法（昭和24年法律第188号。以下「法」という。）第33条第1項の規定に基づく公共測量の【ア】たる作業規程の【イ】として、公共測量の測量方法その他の公共測量を実施するために必要な事項を定めることにより、公共測量の規格を統一し、あわせて公共測量において得られる測量成果の必要な【ウ】の確保を図ることを目的とする。」", ht: "アはルール、イはひな形、ウは測量に必須の品質です。", md: "ア：基準、イ：準則、ウ：精度" },
+            { id: 45, yr: "過去問", tp: "穴埋め", q: "作業規程の準則 第十二条：「測量作業機関は、当該測量作業を実施するため、【ア】を選任し、作業計画の立案、工程管理、精度管理等を行わせなければならない。」", ht: "現場の技術的な責任者です。", md: "主任技術者" },
+            { id: 46, yr: "過去問", tp: "穴埋め", q: "作業規程の準則 第十三条：「主任技術者は、測量記録等を点検し、測量成果の【ア】を確認して、必要な事項を取りまとめ、測量計画機関に提出しなければならない。」", ht: "測量で確保すべき最も重要な性質です。", md: "正確さの確保（または精度）" },
+            { id: 47, yr: "過去問", tp: "記述", q: "作業規程の準則 第十四条：「測量計画機関は、公共測量の正確さを確保するため、測量作業機関が行う測量作業について点検を行わなければならない。」とあるが、この点検を測量計画機関自身が行うことが困難な場合、誰に行わせることができるか。", ht: "作業を実施した機関とは別の、専門的な知識を持つ第三者機関です。", md: "当該測量作業機関以外の、測量に関し専門的知識を有する第三者" },
+            { id: 48, yr: "過去問", tp: "正誤", q: "「測量計画機関は、当該測量作業に使用される測量機器の点検計算表などの検定に関する書類の提出を求め、当該測量機器が所定の性能を有していることを確認したため、機器検定の有効期間の確認は省略した。」", ht: "有効期間内の検定証明書を確認することは必須です。", md: "誤り。測量機器が所定の性能を有していること及び機器検定の有効期間内であることを確認しなければならない。" },
+            { id: 49, yr: "過去問", tp: "手続き", q: "作業規程の準則 第十七条：「この準則に定めのない新しい測量技術等を用いて公共測量を実施する場合は、測量計画機関は、使用する機器等により精度が確保できることを検証結果に基づき確認するとともに、当該確認に当たつては、【ア】の意見を求めるものとする。」", ht: "国の測量行政の専門機関の長です。", md: "国土地理院の長" },
+            { id: 50, yr: "過去問", tp: "数値", q: "作業規程の準則 第十九条において、1級及び2級基準点測量の標準点検測量率は何パーセントと定められているか。", ht: "最も高い精度が求められるため、点検率も最も高いです。", md: "10%" },
+            { id: 51, yr: "過去問", tp: "数値", q: "作業規程の準則 第十九条において、3級及び4級基準点測量等の標準点検測量率は何パーセントと定められているか。", ht: "1,2級の半分です。", md: "5%" },
+            { id: 52, yr: "過去問", tp: "数値", q: "作業規程の準則 第十九条において、地形測量及び写真測量の標準点検測量率は何パーセントと定められているか。", ht: "基準点測量よりも低い割合です。", md: "2%" },
+            { id: 53, yr: "過去問", tp: "正誤", q: "「観測手簿の記入において、記載に誤りがあったため、消しゴムで当該箇所を消去し、正しい数値を記入した。」", ht: "改ざんを防ぐためのルールがあります。", md: "誤り。誤記した場合は、2本線で消去し、その傍らに正しい数値を記入しなければならない。消しゴム等を使用してはならない。" },
+            { id: 54, yr: "過去問", tp: "正誤", q: "「水準測量の観測途中で急病人が出たため、測量計画機関に作業計画の変更を届け出て、承認を得てから観測者を交代して作業を続行した。」", ht: "途中で観測者が変わると、個人による誤差（定誤差）が混入してしまいます。", md: "誤り。一連の観測及び点検が完了した後に観測者を交代しなければならない。途中で交代してはならない。" },
+            { id: 55, yr: "過去問", tp: "記述", q: "作業規程の準則 第二十三条：「測量作業機関は、測量成果に許容範囲を超える異常が発見された場合は、直ちに異常の原因を調査し、再測等の必要な措置を講じなければならない。」\nとあるが、再測を行う場合は、原則としてどのような単位で行うべきか。", ht: "異常が起きた箇所だけでなく、一区切りの単位で行います。", md: "異常のあった観測の単位（1路線、1測点等）で、原則としてすべての観測をやり直す。" },
+            { id: 56, yr: "過去問", tp: "数値", q: "作業規程の準則において、トータルステーション及びGNSS測量機の機器検定の有効期間は、原則として何年以内と定められているか。", ht: "1年ごとの定期的な検定が必要です。", md: "1年以内" },
+            { id: 57, yr: "過去問", tp: "数値", q: "作業規程の準則において、1級水準儀及び2級水準儀の機器検定の有効期間は、原則として何年以内と定められているか。", ht: "TSと同じく1年ごとの検定が必要です。", md: "1年以内" },
+            { id: 58, yr: "過去問", tp: "数値", q: "作業規程の準則において、1級標尺及び2級標尺の検定の有効期間は、原則として何年以内と定められているか。", ht: "水準儀よりは長く設定されています。", md: "3年以内" },
+            { id: 59, yr: "過去問", tp: "記述", q: "測量成果等を電子媒体で納品する場合、情報セキュリティの観点から測量作業機関が特に行うべき事項を二つ答えよ。", ht: "マルウェアの対策と、データの改ざん防止対策です。", md: "①最新のウイルスチェックソフトでチェックする。②電子媒体にデータを追記できないこと（読み取り専用）を確認する。" },
+            { id: 60, yr: "過去問", tp: "数値", q: "作業規程の準則 第三十二条：「測量記録等の保存期間は、【ア】年とする。ただし、測量計画機関が別に定めた場合は、この限りでない。」\n【ア】に入る語句を答えよ。", ht: "後からいつでも検証できるようにするため、期間の定めはありません。", md: "永久" },
+            { id: 61, yr: "過去問", tp: "積算", q: "測量作業費の構成のうち、「直接測量費」に含まれる5つの費目をすべて答えよ。", ht: "人、物、機械、経費、そして技術を管理する費用です。", md: "直接人件費、材料費、機械経費、直接経費、技術管理費" },
+            { id: 62, yr: "過去問", tp: "積算", q: "測量作業費の構成のうち、「測量業者の本支店等の維持運営に必要な経費」はどの費目に分類されるか。", ht: "現場での直接的な作業にかからない、会社全体を回すための費用です。", md: "一般管理費等" },
+            { id: 63, yr: "過去問", tp: "記述", q: "令和5年の作業規程の準則一部改正により新たに規定された「電子基準点のみを既知点とした3級基準点測量」を行う場合に期待できる効果について、「観測作業」「2級基準点」の語句を使用して解答欄に記せ。", ht: "既知点を探す手間が省けることによるメリットを記述します。", md: "既知点として2級基準点等を使用しないため、事前の踏査や観測作業が省略でき、作業時間の短縮による作業の効率化が期待できる。" },
+            { id: 64, yr: "過去問", tp: "分類", q: "令和5年の「作業規程の準則」一部改正で新たに規定された作業を次の中からすべて選べ。\n1. 航空レーザ測深測量\n2. 車載写真レーザ測量によるオリジナルデータ等の三次元点群データ作成\n3. GNSS測量機を用いた3級水準測量\n4. UAVレーザ測量", ht: "資料に記載のあった3つの作業を選びます。", md: "1. 航空レーザ測深測量、2. 車載写真レーザ測量によるオリジナルデータ等の三次元点群データ作成、4. UAVレーザ測量" },
+            { id: 65, yr: "過去問", tp: "正誤", q: "「基準点測量において、トータルステーションの機器検定を2年前に第三者機関で受け合格していたため、その検定証明書の写しを提出した。」", ht: "TSの検定有効期間は1年以内です。", md: "誤り。検定に関する技術及び機器等を有する第三者機関の検定を「1年以内」に受け、新たな検定証明書の写しを提出しなければならない。" },
+            { id: 66, yr: "過去問", tp: "正誤", q: "「GNSS観測において、アンテナ高を2mの位置で設定するよう指示があったが、誤って1.5mで観測を開始した。途中で気づいたため、1.5mの測定値で記録し、観測を継続し、後で計算により補正した。」", ht: "アンテナ高は途中で変更したり補正したりせず、やり直す必要があります。", md: "誤り。観測を最初からやり直さなければならない。" },
+            { id: 67, yr: "過去問", tp: "記述", q: "GNSS測量機を用いた基準点測量において、選点時に確保すべき上空視界の条件について簡潔に述べよ。", ht: "衛星からの電波を遮るものがないようにする必要があります。", md: "高度角15度以上の視界を確保する。" },
+            { id: 68, yr: "過去問", tp: "記述", q: "ネットワーク型RTK-GNSS観測（VRS方式）において、観測前に確認すべき配信データの種類は何か。", ht: "自分の位置を補正するための仮想的な基準点のデータです。", md: "仮想基準点の補正データ等" },
+            { id: 69, yr: "過去問", tp: "正誤", q: "「TSを用いた基準点測量において、気温や気圧の観測を行わずに、前回観測時の気象補正値をそのまま入力して観測した。」", ht: "光波測距儀は空気の密度（気象条件）によって光の速度が変わるため、その場での観測が必須です。", md: "誤り。気温や気圧は観測ごとに測定し、正しい気象補正を行わなければならない。" },
+            { id: 70, yr: "過去問", tp: "穴埋め", q: "基準点測量等で得られた測量成果の水平位置は、【ア】上の経度及び緯度又は【イ】上の平面直角座標で表示する。", ht: "アは地球の形をモデル化したもの、イはそれを平面に投影したものです。", md: "ア：準拠楕円体、イ：地図投影面" },
+            { id: 71, yr: "過去問", tp: "穴埋め", q: "測量の基準に関する法令の規定において、日本の経度及び緯度は、【ア】に従って測り、かつ、表示する。", ht: "国際的に定められた地球の測地系です。", md: "世界測地系" },
+            { id: 72, yr: "過去問", tp: "記述", q: "標高と楕円体高、ジオイド高の関係を表す式を答えよ。（標高 ＝ の形で答えること）", ht: "楕円体からジオイドまでの高さがジオイド高、ジオイドから地表までの高さが標高です。", md: "標高 ＝ 楕円体高 － ジオイド高" },
+            { id: 73, yr: "過去問", tp: "穴埋め", q: "水準測量等で得られた標高は、【ア】平均海面からの高さで表示する。ただし、離島にあってはこの限りでない。", ht: "日本の標高の基準となる海面です。", md: "東京湾" },
+            { id: 74, yr: "過去問", tp: "数値", q: "1級水準測量における観測の許容範囲は、往復観測の較差が「【ア】mm√S」以内と定められている（Sは観測路線長km）。【ア】の数値を答えよ。", ht: "最も厳しい精度が求められます。2級は5mmです。", md: "2.5" },
+            { id: 75, yr: "過去問", tp: "正誤", q: "「水準測量において、標尺の下部が摩耗していることが判明したが、高低差の計算で相殺されると判断し、そのまま使用した。」", ht: "常に一定の誤差（零点誤差）が生じるため、そのまま使用してはいけません。", md: "誤り。標尺の零点誤差が生じるため、検定を受けた正常な標尺を使用するか、補正を行う必要がある。" },
+            { id: 76, yr: "過去問", tp: "正誤", q: "「水準測量において、天候が悪化し視程が著しく低下したため、視準距離を規定より短くして観測を続行した。」", ht: "視準距離は短くする分には精度に悪影響は少ないですが、前後のバランスに注意が必要です。", md: "正しい。（視準距離の短縮は許容される。ただし前後の視準距離は等しくする等の条件を満たす必要がある）" },
+            { id: 77, yr: "過去問", tp: "記述", q: "地形測量とはどのような測量か。作業規程の準則に基づき簡潔に述べよ。", ht: "地表の形や建物の位置を測り、地図データを作ることです。", md: "地表の地形、地物等を測定し、数値地形図データを作成する作業。" },
+            { id: 78, yr: "過去問", tp: "記述", q: "地上レーザ測量における「点群データ」とはどのようなデータか簡潔に説明せよ。", ht: "レーザが反射して得られる無数の点の集まりです。", md: "3次元の座標（X,Y,Z）を持った点の集合データ。" },
+            { id: 79, yr: "過去問", tp: "記述", q: "地上レーザ測量において、レーザ測距儀を使用する際、作業者や周辺の人の目に対する安全性を確保するために確認すべき仕様上の基準は何か。", ht: "安全基準を示すJIS規格のクラスです。", md: "JIS規格に定める「クラス1」又は「クラス1M」のレーザ製品であること。" },
+            { id: 80, yr: "過去問", tp: "正誤", q: "「UAV写真測量において、対空標識の設置は、原則として撮影の直前に行い、撮影後は速やかに撤去した。」", ht: "標識の維持と安全管理の観点から正しい対応です。", md: "正しい。" },
+            { id: 81, yr: "過去問", tp: "記述", q: "UAVを用いた写真測量で、現地に標定点を設置する目的を簡潔に述べよ。", ht: "写真のデータだけでは現実世界の「どこにあるか」が分からないためです。", md: "撮影した写真の絶対的な位置や傾きを求め、モデルを実空間の座標系に変換するため。" },
+            { id: 82, yr: "過去問", tp: "手続き", q: "公共測量において、国土地理院が公開している「基盤地図情報」を測量の基準として利用して測量成果を作成する場合、事前に必要な手続きは何か。", ht: "基本測量の成果を使用する場合と同様の手続きが必要です。", md: "国土地理院の長の承認を得る必要がある。" },
+            { id: 83, yr: "過去問", tp: "記述", q: "測量作業において、個人の有する土地に立ち入る必要が生じた際、所有者が不在であったため、その土地の占有者（借家人など）に通知して立ち入った。この対応は測量法上適切か、不適切か。理由とともに述べよ。", ht: "測量法第14条の規定によります。", md: "適切である。測量法第14条では「あらかじめ、その旨を当該土地の占有者に通知しなければならない」と規定されているため。" },
+            { id: 84, yr: "過去問", tp: "手続き", q: "測量業者の登録事項（商号、営業所の名称など）に変更があった場合、何日以内に国土交通大臣に届け出なければならないか。", ht: "変更があったときは速やかに、具体的には1ヶ月以内です。", md: "30日以内" },
+            { id: 85, yr: "過去問", tp: "分類", q: "A市が都市計画道路の設計のため、国土地理院の電子基準点を使用して3級基準点測量を実施した。これは基本測量、公共測量、基本測量及び公共測量以外の測量のどれに該当するか。", ht: "実施主体（公共団体）と費用の負担者に着目します。", md: "公共測量" },
+            { id: 86, yr: "過去問", tp: "記述", q: "GNSS測量において、マルチパス（多重反射）誤差を軽減するために、選点時に避けるべき環境条件を二つ挙げよ。", ht: "電波を反射しやすい大きな構造物や水面です。", md: "①近くに高い建物や鉄塔などの構造物がある場所。②水面や金属の壁など、電波を反射しやすい面がある場所。" },
+            { id: 87, yr: "過去問", tp: "穴埋め", q: "作業規程の準則において、測地成果2011の座標値を使用する場合、地殻変動によるひずみの影響を補正するために行う計算を【ア】補正という。", ht: "動的（ダイナミック）な変動を一部（セミ）補正するものです。", md: "セミ・ダイナミック" },
+            { id: 88, yr: "過去問", tp: "穴埋め", q: "セミ・ダイナミック補正において、現在の観測によって得られた座標値を【ア】座標といい、これを基準日（元期）の座標に変換したものを【イ】座標という。", ht: "アは今の時期、イは基準となる元の時期です。", md: "ア：今期、イ：元期" },
+            { id: 89, yr: "過去問", tp: "記述", q: "測量法第二十一条において、国土地理院の長が基本測量の測量標を設置した際に、関係市町村長に通知しなければならない理由は何か。測量標の保全の観点から簡潔に述べよ。", ht: "一番身近な行政機関に存在を知らせることで、地域開発等による意図しない破損を防ぐためです。", md: "市町村が実施する道路工事や開発行為等により、測量標が誤って損壊されるのを防ぎ、地域で適切に保全させるため。" },
+            { id: 90, yr: "過去問", tp: "手続き", q: "公共測量実施計画書を作成し、国土地理院の長に提出して技術的助言を求めるのは、どの機関か。", ht: "測量を実施する作業機関ではなく、計画する側です。", md: "測量計画機関" },
+            { id: 91, yr: "過去問", tp: "正誤", q: "「測量業者は、複数の営業所を有しているが、本社にのみ専任の測量士を配置し、他の支店には測量士補のみを配置して営業を行っている。」", ht: "測量法第五十五条の十三の規定を確認してください。", md: "誤り。測量業者は、その「営業所ごとに」測量士を一人以上置かなければならない。" },
+            { id: 92, yr: "過去問", tp: "記述", q: "作業規程の準則において、UAVレーザ測量を行う際、地表面のデータを正確に取得するために、植生がある地域で特に設定・確認すべきレーザスキャナの機能・仕様は何か。", ht: "一つのレーザ光から複数の反射波を取得する機能です。", md: "マルチエコー（複数反射）機能によるラストパルス（最終反射波）の取得。" },
+            { id: 93, yr: "過去問", tp: "手続き", q: "国土地理院の長は、基本測量の測量成果が十分な正確さを有すると認めたときは、何をしなければならないか。測量法第二十七条に基づき答えよ。", ht: "国民に広く知らせる手続きです。", md: "遅滞なく、その旨を官報で公告しなければならない。" },
+            { id: 94, yr: "過去問", tp: "穴埋め", q: "測量法第九条において、測量標のうち、三角点標石、図根点標石、水準点標石、磁気点標石、基線尺標石、基線標石、験潮儀及び電子基準点は【ア】に分類される。", ht: "ずっと残しておく標識です。", md: "永久標識" },
+            { id: 95, yr: "過去問", tp: "手続き", q: "公共測量の測量成果を使用して、新たに地図を作成し販売しようとする場合、どのような手続きが必要か。", ht: "成果の「使用」と「複製」の規定によります。", md: "あらかじめ、当該公共測量を実施した測量計画機関の長の承認を得なければならない。" },
+            { id: 96, yr: "過去問", tp: "穴埋め", q: "作業規程の準則において、水準測量における観測距離の単位は【ア】とし、読定単位は【イ】とする。", ht: "アはメートル、イは非常に細かい単位（ミリメートル等）です。", md: "ア：メートル（m）、イ：ミリメートル（mm）又は0.1ミリメートル（0.1mm）" },
+            { id: 97, yr: "過去問", tp: "正誤", q: "「ネットワーク型RTK-GNSS観測において、携帯電話回線の電波状況が悪く補正データの受信が途絶えたが、Fix解（固定解）が得られた直後のデータであったため、そのまま観測値として採用した。」", ht: "補正データが継続して受信できていることが前提の測量方法です。", md: "誤り。補正データの受信が途絶えた場合は、正しい解が得られないため、通信が回復するまで待つか、再測しなければならない。" },
+            { id: 98, yr: "過去問", tp: "記述", q: "測量法に基づく「測量業者」の定義を簡潔に述べよ。", ht: "登録を受けて事業を行っている者のことです。", md: "測量法第五十五条の規定により、国土交通大臣の登録を受けて測量業を営む者。" },
+            { id: 99, yr: "過去問", tp: "記述", q: "公共測量において、作業規程の準則に定められた標準点検測量率を減ずる（少なくする）ことができるのはどのような場合か。作業規程の準則総則の規定に基づき述べよ。", ht: "新しい技術等で品質が担保できる場合などです。", md: "測量の正確さを確保できることが明らかな場合（又は国土地理院の長の承認を得た場合）。" },
+            { id: 100, yr: "過去問", tp: "記述", q: "最後に、測量技術者として最も重視すべき倫理観・姿勢について、「正確さ」という言葉を用いて自由に述べよ。（AIによる採点テスト）", ht: "測量法第一条の目的にもある通り、測量の根幹に関わる部分です。", md: "常に測量の正確さを確保することを最優先とし、データの改ざんや不適切な処理を行わず、社会のインフラ整備に寄与する誠実な姿勢。" }
+        ];
+
+        // --- ステート管理 (旧バージョンからの引き継ぎ対応) ---
+        const STORAGE_KEY = 'sokuryoshi_app_data_final';
+        let appData = { scores: {}, mastered: [], answers: {}, hideMastered: true, chatHistories: {} };
+        let currentIndex = 0;
+        let currentFilter = "すべて";
+        const types = ["すべて", "穴埋め", "手続き", "記述", "正誤", "数値", "分類", "積算"];
+        let filteredIndices = [];
+
+        // --- 初期化 ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadData();
+            lucide.createIcons();
+            document.getElementById('hide-mastered-toggle').checked = appData.hideMastered;
+            renderFilters();
+            setFilter("すべて"); 
+        });
+
+        // データロード＆セーブ
+        function loadData() {
+            let saved = localStorage.getItem(STORAGE_KEY);
+            
+            // バージョンアップで消えた旧データの復旧処理
+            if (!saved) {
+                const oldKeys = ['sokuryoshi_app_data_v6', 'sokuryoshi_app_data_v5', 'sokuryoshi_app_data_v4', 'sokuryoshi_app_data_v3'];
+                for (const key of oldKeys) {
+                    saved = localStorage.getItem(key);
+                    if (saved) {
+                        console.log(`Recovered data from ${key}`);
+                        localStorage.setItem(STORAGE_KEY, saved);
+                        break;
+                    }
+                }
+            }
+
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    appData.scores = parsed.scores || {};
+                    appData.mastered = parsed.mastered || [];
+                    appData.answers = parsed.answers || {};
+                    appData.hideMastered = parsed.hideMastered !== undefined ? parsed.hideMastered : true;
+                    appData.chatHistories = parsed.chatHistories || {};
+                } catch(e) { console.error('Failed to parse local storage'); }
+            }
+        }
+        
+        function saveData() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+            updateProgressUI();
+        }
+
+        // --- フィルターとナビゲーション ---
+        function renderFilters() {
+            const container = document.getElementById('filter-container');
+            container.innerHTML = types.map(t => `
+                <button onclick="setFilter('${t}')" 
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-sm
+                    ${t === currentFilter 
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' 
+                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}">
+                    ${t}
+                </button>
+            `).join('');
+        }
+
+        function toggleHideMode(isChecked) {
+            appData.hideMastered = isChecked;
+            saveData();
+            showToast(isChecked ? '完璧な問題（正解済み）を非表示にしました' : 'すべての問題を表示します', 'info');
+            setFilter(currentFilter);
+        }
+
+        function rebuildFilteredIndices() {
+            filteredIndices = [];
+            for (let i = 0; i < QS.length; i++) {
+                const q = QS[i];
+                const isTypeMatch = (currentFilter === "すべて" || q.tp === currentFilter);
+                const isMastered = appData.mastered.includes(q.id);
+                if (isTypeMatch) {
+                    if (appData.hideMastered && isMastered) continue;
+                    filteredIndices.push(i);
+                }
+            }
+        }
+
+        function setFilter(type) {
+            currentFilter = type;
+            rebuildFilteredIndices();
+            currentIndex = 0; 
+            renderFilters();
+            updateView();
+            updateProgressUI();
+        }
+
+        function navigate(direction) {
+            if (filteredIndices.length === 0) return;
+            const currentQId = QS[filteredIndices[currentIndex]].id;
+            
+            // 遷移時に改めてリストを再構築（正解してマスター済みになったものを除外するため）
+            rebuildFilteredIndices();
+            
+            if (filteredIndices.length === 0) {
+                updateView();
+                return;
+            }
+
+            let newIndex = filteredIndices.findIndex(idx => QS[idx].id === currentQId);
+            if (newIndex === -1) {
+                // 今見ていた問題がマスターされて消えた場合、その位置から次に進む
+                if (direction > 0) currentIndex = currentIndex % filteredIndices.length;
+                else currentIndex = (currentIndex - 1 + filteredIndices.length) % filteredIndices.length;
+            } else {
+                currentIndex = (newIndex + direction + filteredIndices.length) % filteredIndices.length;
+            }
+            updateView();
+        }
+
+        // --- 画面更新 ---
+        function updateView() {
+            const container = document.getElementById('question-container');
+            const navContainer = document.getElementById('nav-container');
+
+            if (filteredIndices.length === 0) {
+                let msg = currentFilter === "すべて" 
+                    ? "🎉 100問すべて完璧にマスターしました！素晴らしいです！"
+                    : `このカテゴリーの問題はすべて完璧です！`;
+                if(!appData.hideMastered && QS.length > 0) msg = "条件に一致する問題がありません。";
+
+                container.innerHTML = `
+                    <div class="bg-white rounded-xl border-2 border-dashed border-emerald-200 p-10 text-center animate-fade-in shadow-sm">
+                        <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i data-lucide="award" class="w-8 h-8 text-emerald-500"></i>
+                        </div>
+                        <h2 class="text-lg md:text-xl font-black text-slate-800 mb-2">${msg}</h2>
+                        <p class="text-slate-500 font-medium text-xs md:text-sm">右上のトグルをOFFにすると、再度すべての問題を確認できます。</p>
+                    </div>`;
+                navContainer.style.display = 'none';
+                lucide.createIcons();
+                return;
+            }
+            
+            navContainer.style.display = 'flex';
+            const globalIndex = filteredIndices[currentIndex];
+            const q = QS[globalIndex];
+            
+            document.getElementById('question-counter').textContent = `${currentIndex + 1} / ${filteredIndices.length}`;
+
+            const scoreStatus = appData.scores[q.id];
+            let statusBadge = '';
+            if (scoreStatus === 'ok') statusBadge = '<span class="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded text-xs font-bold border border-emerald-200"><i data-lucide="check-circle-2" class="w-3 h-3"></i>正解</span>';
+            else if (scoreStatus === 'pt') statusBadge = '<span class="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-xs font-bold border border-amber-200"><i data-lucide="alert-circle" class="w-3 h-3"></i>部分点</span>';
+            else if (scoreStatus === 'ng') statusBadge = '<span class="flex items-center gap-1 px-2 py-0.5 bg-rose-100 text-rose-800 rounded text-xs font-bold border border-rose-200"><i data-lucide="x-circle" class="w-3 h-3"></i>要復習</span>';
+
+            const isMastered = appData.mastered.includes(q.id);
+            const masterBtnClass = isMastered 
+                ? "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200" 
+                : "bg-white text-slate-500 border-slate-200 hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50";
+            const masterBtnText = isMastered ? "完璧を解除" : "🌟 完璧！";
+            const masterIcon = isMastered ? "star-off" : "star";
+
+            const savedAns = appData.answers[q.id] || "";
+
+            container.innerHTML = `
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-8 animate-fade-in relative overflow-hidden">
+                    <div id="card-border-${globalIndex}" class="absolute top-0 left-0 w-1 h-full ${isMastered ? 'bg-amber-400' : 'bg-emerald-500'} transition-colors duration-300"></div>
+                    
+                    <div class="flex flex-wrap justify-between items-start gap-3 mb-5">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="px-2.5 py-1 bg-slate-800 text-white rounded text-xs font-bold shadow-sm">No. ${q.id}</span>
+                            <span class="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded text-xs font-bold border border-indigo-200">${q.tp}</span>
+                            <span class="px-2.5 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium border border-slate-200">${q.yr}</span>
+                            <div id="status-badge-container-${globalIndex}">${statusBadge}</div>
+                        </div>
+                        <button id="master-btn-${globalIndex}" onclick="toggleMaster(${globalIndex})" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors shadow-sm ${masterBtnClass}">
+                            <i data-lucide="${masterIcon}" class="w-3.5 h-3.5"></i> <span>${masterBtnText}</span>
+                        </button>
+                    </div>
+                    
+                    <h2 class="text-base md:text-base font-bold text-slate-800 leading-relaxed mb-6 whitespace-pre-wrap border-b border-slate-100 pb-5">${q.q}</h2>
+                    
+                    <div id="hint-${globalIndex}" class="hidden mb-5 p-4 bg-blue-50 border border-blue-100 rounded-xl text-blue-900 text-xs md:text-sm flex gap-2.5 shadow-inner">
+                        <i data-lucide="lightbulb" class="w-5 h-5 flex-shrink-0 text-blue-500 mt-0.5"></i>
+                        <div>
+                            <span class="font-black block mb-1 opacity-80 text-xs">ヒント</span>
+                            <p class="font-medium leading-relaxed">${q.ht}</p>
+                        </div>
+                    </div>
+
+                    <div class="mb-5">
+                        <textarea id="answer-${globalIndex}" 
+                            class="w-full min-h-[100px] p-4 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all resize-y text-slate-800 text-sm md:text-sm font-medium shadow-inner placeholder:font-normal" 
+                            placeholder="ここに解答を入力してください..." oninput="saveAnswerTemp(${q.id}, this.value)">${savedAns}</textarea>
+                    </div>
+
+                    <div class="flex flex-wrap gap-2.5">
+                        <button onclick="gradeAnswer(${globalIndex})" class="flex items-center gap-1.5 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-lg transition-all shadow-sm hover:shadow-md transform hover:-translate-y-0.5">
+                            <i data-lucide="pen-tool" class="w-4 h-4"></i> AI採点する
+                        </button>
+                        <button onclick="toggleHint(${globalIndex})" class="flex items-center gap-1.5 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 font-bold text-sm rounded-lg transition-colors">
+                            <i data-lucide="lightbulb" class="w-4 h-4"></i> ヒント
+                        </button>
+                        <button onclick="showModelAnswer(${globalIndex})" class="flex items-center gap-1.5 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 font-bold text-sm rounded-lg transition-colors md:ml-auto">
+                            模範解答のみ見る
+                        </button>
+                    </div>
+
+                    <div id="loading-${globalIndex}" class="hidden mt-6 flex flex-col items-center justify-center gap-2 text-emerald-600 font-bold p-6 bg-emerald-50 rounded-xl border border-emerald-100">
+                        <i data-lucide="loader-2" class="w-6 h-6 animate-spin"></i> 
+                        <span class="text-sm">AIが解答を分析中...</span>
+                    </div>
+
+                    <div id="feedback-${globalIndex}" class="hidden mt-6"></div>
+                </div>
+            `;
+            lucide.createIcons();
+
+            if (appData.chatHistories[q.id] && appData.chatHistories[q.id].length > 1) {
+                 // チャット履歴が存在する場合は、フィードバックを開いた状態にしないとチャットが見えないため、
+                 // 模範解答を見た状態として無理やり開くか、ここでは一旦何もしない（再度採点か解答確認で開く）
+            }
+        }
+
+        function saveAnswerTemp(qId, val) {
+            appData.answers[qId] = val;
+            saveData();
+        }
+
+        function toggleMaster(globalIndex) {
+            const qId = QS[globalIndex].id;
+            const isMastered = appData.mastered.includes(qId);
+            
+            if (isMastered) {
+                appData.mastered = appData.mastered.filter(id => id !== qId);
+                showToast('「完璧」を解除しました', 'info');
+            } else {
+                appData.mastered.push(qId);
+                if (appData.hideMastered) showToast('🌟 完璧にしました！（次へ進むと非表示になります）', 'success');
+                else showToast('🌟 完璧リストに追加しました！', 'success');
+            }
+            saveData();
+            
+            const btn = document.getElementById(`master-btn-${globalIndex}`);
+            const border = document.getElementById(`card-border-${globalIndex}`);
+            if (btn && border) {
+                if (appData.mastered.includes(qId)) {
+                    btn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors shadow-sm bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200";
+                    btn.innerHTML = `<i data-lucide="star-off" class="w-3.5 h-3.5"></i> <span>完璧を解除</span>`;
+                    border.className = "absolute top-0 left-0 w-1 h-full bg-amber-400 transition-colors duration-300";
+                } else {
+                    btn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors shadow-sm bg-white text-slate-500 border-slate-200 hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50";
+                    btn.innerHTML = `<i data-lucide="star" class="w-3.5 h-3.5"></i> <span>🌟 完璧！</span>`;
+                    border.className = "absolute top-0 left-0 w-1 h-full bg-emerald-500 transition-colors duration-300";
+                }
+                lucide.createIcons();
+            }
+        }
+
+        function toggleHint(index) {
+            const hintEl = document.getElementById(`hint-${index}`);
+            hintEl.classList.toggle('hidden');
+            hintEl.classList.add('animate-fade-in');
+        }
+
+        function showModelAnswer(index) {
+            const q = QS[index];
+            const fbEl = document.getElementById(`feedback-${index}`);
+            fbEl.className = 'mt-6 p-5 md:p-6 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 block animate-fade-in shadow-sm';
+            fbEl.innerHTML = `
+                <div class="flex items-start gap-3">
+                    <div class="bg-white p-1.5 rounded-lg shadow-sm border border-slate-200 mt-0.5"><i data-lucide="book-open" class="w-5 h-5 text-slate-600"></i></div>
+                    <div class="w-full">
+                        <h3 class="font-black text-base mb-2 border-b border-slate-200 pb-1.5">模範解答</h3>
+                        <p class="whitespace-pre-wrap text-sm md:text-sm font-medium leading-relaxed">${q.md}</p>
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+            if(!appData.scores[q.id]) {
+                appData.scores[q.id] = 'ng';
+                saveData();
+                updateBadgeDOM(index, 'ng');
+            }
+        }
+
+        function updateBadgeDOM(index, scoreVal) {
+            const badgeContainer = document.getElementById(`status-badge-container-${index}`);
+            if (!badgeContainer) return;
+            if (scoreVal === 'ok') badgeContainer.innerHTML = '<span class="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded text-xs font-bold border border-emerald-200"><i data-lucide="check-circle-2" class="w-3 h-3"></i>正解</span>';
+            else if (scoreVal === 'pt') badgeContainer.innerHTML = '<span class="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-xs font-bold border border-amber-200"><i data-lucide="alert-circle" class="w-3 h-3"></i>部分点</span>';
+            else if (scoreVal === 'ng') badgeContainer.innerHTML = '<span class="flex items-center gap-1 px-2 py-0.5 bg-rose-100 text-rose-800 rounded text-xs font-bold border border-rose-200"><i data-lucide="x-circle" class="w-3 h-3"></i>要復習</span>';
+            lucide.createIcons();
+        }
+
+        const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+        async function fetchWithRetry(url, options, maxRetries = 5) {
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.ok) return response;
+                } catch (error) {
+                    if (i === maxRetries - 1) throw error;
+                }
+                await delay(delays[i]);
+            }
+            throw new Error('All retries failed');
+        }
+
+        // --- 採点ロジック ---
+        async function gradeAnswer(index) {
+            const q = QS[index];
+            const qId = q.id;
+            const userAnswer = document.getElementById(`answer-${index}`).value.trim();
+            if (!userAnswer) { showToast('解答が入力されていません！', 'error'); return; }
+
+            const loadingEl = document.getElementById(`loading-${index}`);
+            const feedbackEl = document.getElementById(`feedback-${index}`);
+            loadingEl.classList.remove('hidden');
+            feedbackEl.classList.add('hidden');
+
+            const prompt = `あなたは測量士試験の厳密かつ穏やかな採点官です。以下の解答を採点しJSONで返してください。
+            【問題の種類】${q.tp}
+            【問題】${q.q}
+            【模範解答】${q.md}
+            【受験者の解答】${userAnswer}
+            
+            採点基準: 正解/一部正解/要復習。記号・穴埋めは厳密に。`;
+
+            appData.chatHistories[qId] = [{ role: "user", parts: [{ text: prompt }] }];
+
+            try {
+                const apiKey = ""; 
+                const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        contents: appData.chatHistories[qId],
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            responseSchema: {
+                                type: "OBJECT", properties: {
+                                    result: { type: "STRING", description: "'正解', '一部正解', '要復習' のいずれか" },
+                                    reason: { type: "STRING", description: "採点理由とアドバイス" },
+                                    missing: { type: "STRING", description: "不足キーワード" }
+                                }
+                            }
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                const replyText = data.candidates[0].content.parts[0].text;
+                appData.chatHistories[qId].push({ role: "model", parts: [{ text: replyText }] });
+                
+                const resultJSON = JSON.parse(replyText);
+                displayFeedback(index, resultJSON.result, resultJSON.reason, resultJSON.missing, q.md);
+
+            } catch (error) {
+                appData.chatHistories[qId] = []; 
+                let res = "要復習";
+                let reason = "オフラインのため簡易判定を行いました。";
+                if (userAnswer.length > 0) res = "一部正解";
+                const keywords = q.md.replace(/[①②ア：イ：、。]/g, ' ').split(/\s+/).filter(k => k.length > 1);
+                let matchCount = 0;
+                keywords.forEach(k => { if(userAnswer.includes(k)) matchCount++; });
+                if (matchCount > 0 && matchCount >= keywords.length / 2) res = "正解";
+                if (keywords.length === 0 && userAnswer === q.md) res = "正解";
+                displayFeedback(index, res, reason, "", q.md);
+            } finally {
+                loadingEl.classList.add('hidden');
+            }
+        }
+
+        function displayFeedback(index, result, reason, missing, modelAnswer) {
+            const qId = QS[index].id;
+            const feedbackEl = document.getElementById(`feedback-${index}`);
+            
+            let bgClass = "bg-rose-50 border-rose-200 text-rose-900";
+            let icon = "x-octagon"; let iconColor = "text-rose-500"; let iconBg = "bg-white border border-rose-100";
+            let scoreVal = 'ng';
+
+            if (result.includes("正解") && !result.includes("一部")) {
+                bgClass = "bg-emerald-50 border-emerald-200 text-emerald-900"; icon = "check-circle-2"; iconColor = "text-emerald-500"; iconBg = "bg-white border border-emerald-100"; scoreVal = 'ok';
+            } else if (result.includes("一部")) {
+                bgClass = "bg-amber-50 border-amber-200 text-amber-900"; icon = "alert-triangle"; iconColor = "text-amber-500"; iconBg = "bg-white border border-amber-100"; scoreVal = 'pt';
+            }
+
+            appData.scores[qId] = scoreVal;
+            
+            // ★自動マスター機能：正解した場合、自動で完璧リストに追加する
+            let autoMastered = false;
+            if (scoreVal === 'ok' && !appData.mastered.includes(qId)) {
+                appData.mastered.push(qId);
+                autoMastered = true;
+            }
+            saveData();
+            updateBadgeDOM(index, scoreVal);
+
+            let html = `
+                <div class="flex flex-col items-start gap-4">
+                    <div class="flex items-start gap-4 w-full">
+                        <div class="${iconBg} p-2 rounded-xl flex-shrink-0 mt-1 shadow-sm"><i data-lucide="${icon}" class="w-6 h-6 ${iconColor}"></i></div>
+                        <div class="w-full">
+                            <h3 class="font-black text-lg md:text-xl mb-2 flex items-center gap-2">${result}</h3>
+                            <p class="mb-3 text-sm font-medium leading-relaxed bg-white/70 p-4 rounded-xl shadow-sm border border-black/5">${reason}</p>
+            `;
+
+            if (missing && missing.trim() !== "") {
+                html += `
+                            <div class="mb-3 p-3 bg-white/90 rounded-lg border border-rose-100 text-xs shadow-sm flex gap-2 items-start">
+                                <i data-lucide="target" class="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5"></i>
+                                <div><span class="font-bold block mb-0.5 text-rose-800">不足ポイント:</span><span class="text-rose-600 font-bold">${missing}</span></div>
+                            </div>
+                `;
+            }
+
+            html += `
+                            <div class="pt-3 mt-1 border-t border-black/5">
+                                <span class="font-black opacity-40 text-[10px] block mb-1 uppercase tracking-widest">Model Answer</span>
+                                <div class="text-sm font-bold whitespace-pre-wrap">${modelAnswer}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 追加チャットUI -->
+                    <div class="w-full mt-4 pt-4 border-t border-slate-200/60">
+                        <div class="flex items-center gap-1.5 mb-2 text-slate-500 font-bold text-xs">
+                            <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> AIへの質問・指摘
+                        </div>
+                        <div id="chat-log-${index}" class="max-h-60 overflow-y-auto pr-1 flex flex-col gap-3 mb-3 text-sm"></div>
+                        <div class="flex gap-2">
+                            <input type="text" id="chat-input-${index}" class="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 shadow-sm" placeholder="解説に疑問や間違いがあれば指摘してください...">
+                            <button onclick="sendChatMessage(${index})" class="bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-600 transition-colors shadow-sm whitespace-nowrap">送信</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            feedbackEl.className = `mt-6 p-5 md:p-6 rounded-2xl border block animate-fade-in shadow-md ${bgClass}`;
+            feedbackEl.innerHTML = html;
+            lucide.createIcons();
+            
+            // 完璧ボタンの表示も更新
+            const btn = document.getElementById(`master-btn-${index}`);
+            const border = document.getElementById(`card-border-${index}`);
+            if (btn && border && appData.mastered.includes(qId)) {
+                btn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors shadow-sm bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200";
+                btn.innerHTML = `<i data-lucide="star-off" class="w-3.5 h-3.5"></i> <span>完璧を解除</span>`;
+                border.className = "absolute top-0 left-0 w-1 h-full bg-amber-400 transition-colors duration-300";
+                lucide.createIcons();
+            }
+
+            if (appData.chatHistories[qId] && appData.chatHistories[qId].length > 2) {
+                renderChatHistory(index);
+            }
+
+            // 自動マスターされた旨を通知
+            if (autoMastered) {
+                setTimeout(() => {
+                    if (appData.hideMastered) {
+                        showToast('🎉 正解！この問題はリストから隠れます（次へ進むと見えなくなります）', 'success');
+                    } else {
+                        showToast('🎉 正解！自動的に完璧リストに追加しました', 'success');
+                    }
+                }, 800);
+            }
+        }
+
+        // --- チャット追加送信ロジック ---
+        async function sendChatMessage(index) {
+            const q = QS[index];
+            const qId = q.id;
+            const inputEl = document.getElementById(`chat-input-${index}`);
+            const inputVal = inputEl.value.trim();
+            
+            if (!inputVal) return;
+            inputEl.value = '';
+
+            const chatLogEl = document.getElementById(`chat-log-${index}`);
+            
+            chatLogEl.innerHTML += `
+                <div class="flex justify-end">
+                    <div class="bg-emerald-100 text-emerald-900 border border-emerald-200 px-3 py-2 rounded-xl rounded-tr-sm max-w-[85%] text-xs font-medium shadow-sm">
+                        ${inputVal}
+                    </div>
+                </div>
+            `;
+            chatLogEl.scrollTop = chatLogEl.scrollHeight;
+
+            if (!appData.chatHistories[qId]) appData.chatHistories[qId] = [];
+            appData.chatHistories[qId].push({ role: "user", parts: [{ text: inputVal }] });
+
+            const loadingId = `chat-loading-${Date.now()}`;
+            chatLogEl.innerHTML += `
+                <div id="${loadingId}" class="flex">
+                    <div class="bg-slate-100 border border-slate-200 text-slate-500 px-3 py-2 rounded-xl rounded-tl-sm text-xs flex items-center gap-2">
+                        <i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> 回答を生成中...
+                    </div>
+                </div>
+            `;
+            lucide.createIcons();
+            chatLogEl.scrollTop = chatLogEl.scrollHeight;
+
+            try {
+                const apiKey = ""; 
+                const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        contents: appData.chatHistories[qId],
+                        systemInstruction: {
+                            parts: [{text: "あなたは測量士試験の専門家です。ユーザーからの質問や強い指摘（怒りを含む）に対して、専門的かつ非常に謙虚に答えてください。もし過去の採点や解説、問題文自体に誤りがあった場合は素直に謝罪して認め、正しい解説を提供してください。出力はJSONではなくプレーンテキスト（Markdown可）で行ってください。"}]
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                const replyText = data.candidates[0].content.parts[0].text;
+                
+                appData.chatHistories[qId].push({ role: "model", parts: [{ text: replyText }] });
+                saveData();
+
+                document.getElementById(loadingId).remove();
+                
+                const formattedReply = marked.parse ? marked.parse(replyText) : replyText.replace(/\n/g, '<br>');
+                chatLogEl.innerHTML += `
+                    <div class="flex">
+                        <div class="bg-white border border-slate-200 text-slate-800 px-4 py-3 rounded-xl rounded-tl-sm max-w-[95%] text-xs leading-relaxed shadow-sm markdown-body">
+                            <div class="font-black text-[10px] text-emerald-600 mb-1">AIアシスタント</div>
+                            ${formattedReply}
+                        </div>
+                    </div>
+                `;
+                chatLogEl.scrollTop = chatLogEl.scrollHeight;
+
+            } catch (error) {
+                document.getElementById(loadingId)?.remove();
+                chatLogEl.innerHTML += `
+                    <div class="flex">
+                        <div class="bg-rose-50 border border-rose-200 text-rose-800 px-3 py-2 rounded-xl rounded-tl-sm max-w-[85%] text-xs shadow-sm">
+                            通信エラーが発生しました。時間を置いて再度お試しください。
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // 過去のチャット履歴を描画
+        function renderChatHistory(index) {
+            const qId = QS[index].id;
+            const history = appData.chatHistories[qId];
+            const chatLogEl = document.getElementById(`chat-log-${index}`);
+            if(!chatLogEl || !history) return;
+
+            for (let i = 2; i < history.length; i++) {
+                const msg = history[i];
+                if (msg.role === 'user') {
+                    chatLogEl.innerHTML += `
+                        <div class="flex justify-end">
+                            <div class="bg-emerald-100 text-emerald-900 border border-emerald-200 px-3 py-2 rounded-xl rounded-tr-sm max-w-[85%] text-xs font-medium shadow-sm">
+                                ${msg.parts[0].text}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    const formattedReply = marked.parse ? marked.parse(msg.parts[0].text) : msg.parts[0].text.replace(/\n/g, '<br>');
+                    chatLogEl.innerHTML += `
+                        <div class="flex">
+                            <div class="bg-white border border-slate-200 text-slate-800 px-4 py-3 rounded-xl rounded-tl-sm max-w-[95%] text-xs leading-relaxed shadow-sm markdown-body">
+                                <div class="font-black text-[10px] text-emerald-600 mb-1">AIアシスタント</div>
+                                ${formattedReply}
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        function updateProgressUI() {
+            const completedCount = Object.keys(appData.scores).length;
+            document.getElementById('progress-text').textContent = `${completedCount} / ${QS.length} 完了`;
+            document.getElementById('progress-bar').style.width = `${(completedCount / QS.length) * 100}%`;
+        }
+
+        // --- カスタムトースト ---
+        function showToast(msg, type='info') {
+            const toast = document.getElementById('toast');
+            const icon = document.getElementById('toast-icon');
+            document.getElementById('toast-message').textContent = msg;
+            
+            toast.className = `fixed bottom-5 left-1/2 -translate-x-1/2 opacity-0 transition-all duration-300 z-50 flex items-center gap-2 px-5 py-2.5 rounded-xl shadow-lg font-bold text-white text-sm min-w-[250px] justify-center transform translate-y-10`;
+            
+            if(type === 'error') { toast.classList.add('bg-rose-600'); icon.setAttribute('data-lucide', 'alert-circle'); } 
+            else if(type === 'success') { toast.classList.add('bg-emerald-600'); icon.setAttribute('data-lucide', 'check-circle-2'); } 
+            else { toast.classList.add('bg-slate-800'); icon.setAttribute('data-lucide', 'info'); }
+            lucide.createIcons();
+            requestAnimationFrame(() => toast.classList.remove('opacity-0', 'translate-y-10'));
+            setTimeout(() => toast.classList.add('opacity-0', 'translate-y-10'), 3000);
+        }
+
+        // --- リセット用モーダル ---
+        function showResetModal() {
+            const modal = document.getElementById('reset-modal');
+            const content = document.getElementById('reset-modal-content');
+            modal.classList.remove('hidden'); modal.style.display = 'flex';
+            requestAnimationFrame(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); });
+        }
+        function closeResetModal() {
+            const modal = document.getElementById('reset-modal');
+            const content = document.getElementById('reset-modal-content');
+            modal.classList.add('opacity-0'); content.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); modal.style.display = 'none'; }, 300);
+        }
+        function executeReset() {
+            appData = { scores: {}, mastered: [], answers: {}, hideMastered: document.getElementById('hide-mastered-toggle').checked, chatHistories: {} };
+            localStorage.removeItem(STORAGE_KEY);
+            closeResetModal(); showToast('学習データをすべてリセットしました', 'success');
+            currentIndex = 0; setFilter(currentFilter);
+        }
+    </script>
+    <style>
+        .markdown-body p { margin-bottom: 0.5em; }
+        .markdown-body p:last-child { margin-bottom: 0; }
+        .markdown-body strong { font-weight: 900; color: #0f172a; }
+    </style>
+</body>
+</html>
+
+
+```
