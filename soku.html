@@ -1,4 +1,3 @@
-```html
 <!DOCTYPE html>
 <html lang="ja" class="text-[14px]">
 <head>
@@ -24,7 +23,6 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen p-3 md:p-6 pb-24">
     <div class="max-w-4xl mx-auto">
-        <!-- ヘッダー -->
         <header class="mb-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white p-5 rounded-xl shadow-sm border border-slate-200">
             <div>
                 <h1 class="text-lg md:text-xl font-black text-slate-900 flex items-center gap-2">
@@ -33,17 +31,20 @@
                 </h1>
                 <p class="text-slate-500 mt-1 text-xs md:text-sm font-medium">厳選過去問100題・正解で自動非表示・AIチャット機能</p>
             </div>
-            <button onclick="showResetModal()" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 rounded-lg text-xs font-bold transition-colors border border-slate-200 hover:border-rose-200">
-                <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> 学習リセット
-            </button>
+            <div class="flex gap-2">
+                <button onclick="showSettingsModal()" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm">
+                    <i data-lucide="settings" class="w-3.5 h-3.5"></i> 設定＆データ引継ぎ
+                </button>
+                <button onclick="showResetModal()" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 rounded-lg text-xs font-bold transition-colors border border-slate-200 hover:border-rose-200">
+                    <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> リセット
+                </button>
+            </div>
         </header>
 
-        <!-- コントロールパネル -->
         <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-5 sticky top-2 z-10">
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 gap-3">
                 <div class="flex flex-wrap gap-1.5" id="filter-container">
-                    <!-- フィルターボタン -->
-                </div>
+                    </div>
                 
                 <div class="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
                     <i data-lucide="eye-off" class="w-3.5 h-3.5 text-slate-500"></i>
@@ -64,10 +65,8 @@
             </div>
         </div>
 
-        <!-- 問題カードエリア -->
         <div id="question-container" class="min-h-[300px]"></div>
 
-        <!-- ナビゲーション -->
         <div class="flex justify-between items-center mt-5 bg-white p-3 rounded-xl shadow-sm border border-slate-200" id="nav-container">
             <button onclick="navigate(-1)" class="flex items-center gap-1.5 px-4 py-2 text-slate-600 hover:bg-slate-100 font-bold rounded-lg transition-colors text-sm">
                 <i data-lucide="chevron-left" class="w-4 h-4"></i> 前へ
@@ -82,13 +81,76 @@
         </div>
     </div>
 
-    <!-- トースト通知 -->
     <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 translate-y-24 opacity-0 transition-all duration-300 z-50 flex items-center gap-2 px-5 py-2.5 rounded-xl shadow-lg font-bold text-white text-sm min-w-[250px] justify-center">
         <i id="toast-icon" data-lucide="info" class="w-4 h-4"></i>
         <span id="toast-message">メッセージ</span>
     </div>
 
-    <!-- リセット確認モーダル -->
+    <div id="settings-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl p-5 md:p-6 max-w-md w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 max-h-[90vh] overflow-y-auto" id="settings-modal-content">
+            <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3">
+                <h3 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <i data-lucide="settings" class="w-5 h-5 text-slate-500"></i> 設定＆データ引継ぎ
+                </h3>
+                <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            
+            <div class="mb-6">
+                <label class="block text-sm font-bold text-slate-700 mb-2">1. AI採点用 APIキー（Gemini API）</label>
+                <input type="password" id="api-key-input" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 mb-1" placeholder="AI Studioで取得したキーを入力">
+                <p class="text-[10px] text-slate-500">※ブラウザ内にのみ保存されます。空欄時は「簡易判定(AIなし)」になります。</p>
+            </div>
+
+            <div class="mb-6 border-t border-slate-100 pt-4">
+                <label class="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-1.5">
+                    <i data-lucide="cloud" class="w-4 h-4 text-blue-500"></i> 2. クラウド同期 (PC ↔ iPad)
+                </label>
+                <p class="text-[11px] text-slate-500 mb-3 leading-relaxed">
+                    Google Driveは数日で認証が切れてしまうため、お使いの<b>GitHub (Gist)</b>を利用した無期限の同期機能をご用意しました。<br>
+                    <a href="https://github.com/settings/tokens/new" target="_blank" class="text-blue-600 hover:underline">Token設定画面</a> で <b>gist</b> 権限のみにチェックを入れ、期限を無期限(No expiration)にしてTokenを発行し、下に貼り付けてください。
+                </p>
+                
+                <input type="password" id="gist-token-input" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 mb-2" placeholder="GitHub Token (ghp_xxxx...)">
+                <input type="text" id="gist-id-input" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 mb-3 text-slate-500" placeholder="Gist ID (初回は空欄でOK)">
+                
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="syncToCloud()" id="btn-sync-up" class="flex items-center justify-center gap-1.5 p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors text-xs font-bold shadow-sm">
+                        <i data-lucide="cloud-upload" class="w-3.5 h-3.5"></i> クラウドへ保存
+                    </button>
+                    <button onclick="syncFromCloud()" id="btn-sync-down" class="flex items-center justify-center gap-1.5 p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-xs font-bold shadow-sm">
+                        <i data-lucide="cloud-download" class="w-3.5 h-3.5"></i> クラウドから復元
+                    </button>
+                </div>
+            </div>
+
+            <div class="mb-6 border-t border-slate-100 pt-4">
+                <label class="block text-sm font-bold text-slate-700 mb-2">3. 手動ファイル引継ぎ</label>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="exportData()" class="flex flex-col items-center justify-center gap-2 p-3 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl transition-colors">
+                        <i data-lucide="download" class="w-6 h-6"></i>
+                        <div class="text-center">
+                            <span class="block text-sm font-bold">データ書き出し</span>
+                            <span class="block text-[10px] opacity-80 mt-0.5">PC等で保存</span>
+                        </div>
+                    </button>
+                    
+                    <label class="flex flex-col items-center justify-center gap-2 p-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl transition-colors cursor-pointer">
+                        <i data-lucide="upload" class="w-6 h-6"></i>
+                        <div class="text-center">
+                            <span class="block text-sm font-bold">データ読み込み</span>
+                            <span class="block text-[10px] opacity-80 mt-0.5">iPad等で復元</span>
+                        </div>
+                        <input type="file" id="import-file" class="hidden" accept=".json" onchange="importData(event)">
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex justify-end pt-2">
+                <button onclick="saveSettings()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-bold transition-colors shadow-sm">設定を保存して閉じる</button>
+            </div>
+        </div>
+    </div>
+
     <div id="reset-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center opacity-0 transition-opacity duration-300">
         <div class="bg-white rounded-2xl p-5 md:p-6 max-w-sm w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="reset-modal-content">
             <div class="w-10 h-10 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-3">
@@ -105,6 +167,7 @@
 
     <script>
         // --- 過去問ベースの問題データ (全100問) ---
+        // ※データ構造は前回と同じです。
         const QS = [
             { id: 1, yr: "過去問", tp: "穴埋め", q: "測量法第一条：「この法律は、国若しくは【ア】が費用の全部若しくは一部を負担し、若しくは補助して実施する土地の測量又はこれらの測量の結果を利用する土地の測量について、その実施の基準及び実施に必要な権能を定め、測量の【イ】を除き、並びに測量の【ウ】を確保するとともに、測量業を営む者の登録の実施、業務の規制等により、測量業の適正な運営とその健全な発達を図り、もつて各種測量の調整及び測量制度の改善発達に資することを目的とする。」", ht: "アは地方公共団体など、イは無駄をなくすこと、ウは測量で最も重要な品質です。", md: "ア：公共団体、イ：重複、ウ：正確さ" },
             { id: 2, yr: "過去問", tp: "穴埋め", q: "測量法第三条：「この法律において「測量」とは、【ア】をいい、【イ】及び測量用写真の撮影を含むものとする。」", ht: "測量の対象と、図面を作る作業のことです。", md: "ア：土地の測量、イ：地図の調製" },
@@ -188,7 +251,7 @@
             { id: 80, yr: "過去問", tp: "正誤", q: "「UAV写真測量において、対空標識の設置は、原則として撮影の直前に行い、撮影後は速やかに撤去した。」", ht: "標識の維持と安全管理の観点から正しい対応です。", md: "正しい。" },
             { id: 81, yr: "過去問", tp: "記述", q: "UAVを用いた写真測量で、現地に標定点を設置する目的を簡潔に述べよ。", ht: "写真のデータだけでは現実世界の「どこにあるか」が分からないためです。", md: "撮影した写真の絶対的な位置や傾きを求め、モデルを実空間の座標系に変換するため。" },
             { id: 82, yr: "過去問", tp: "手続き", q: "公共測量において、国土地理院が公開している「基盤地図情報」を測量の基準として利用して測量成果を作成する場合、事前に必要な手続きは何か。", ht: "基本測量の成果を使用する場合と同様の手続きが必要です。", md: "国土地理院の長の承認を得る必要がある。" },
-            { id: 83, yr: "過去問", tp: "記述", q: "測量作業において、個人の有する土地に立ち入る必要が生じた際、所有者が不在であったため、その土地の占有者（借家人など）に通知して立ち入った。この対応は測量法上適切か、不適切か。理由とともに述べよ。", ht: "測量法第14条の規定によります。", md: "適切である。測量法第14条では「あらかじめ、その旨を当該土地の占有者に通知しなければならない」と規定されているため。" },
+            { id: 83, yr: "過去問", tp: "記述", q: "測量作業において、個人の有する土地に立ち入る必要が生じた際、所有者が不在であったため、その土地の占 নাস有者（借家人など）に通知して立ち入った。この対応は測量法上適切か、不適切か。理由とともに述べよ。", ht: "測量法第14条の規定によります。", md: "適切である。測量法第14条では「あらかじめ、その旨を当該土地の占有者に通知しなければならない」と規定されているため。" },
             { id: 84, yr: "過去問", tp: "手続き", q: "測量業者の登録事項（商号、営業所の名称など）に変更があった場合、何日以内に国土交通大臣に届け出なければならないか。", ht: "変更があったときは速やかに、具体的には1ヶ月以内です。", md: "30日以内" },
             { id: 85, yr: "過去問", tp: "分類", q: "A市が都市計画道路の設計のため、国土地理院の電子基準点を使用して3級基準点測量を実施した。これは基本測量、公共測量、基本測量及び公共測量以外の測量のどれに該当するか。", ht: "実施主体（公共団体）と費用の負担者に着目します。", md: "公共測量" },
             { id: 86, yr: "過去問", tp: "記述", q: "GNSS測量において、マルチパス（多重反射）誤差を軽減するために、選点時に避けるべき環境条件を二つ挙げよ。", ht: "電波を反射しやすい大きな構造物や水面です。", md: "①近くに高い建物や鉄塔などの構造物がある場所。②水面や金属の壁など、電波を反射しやすい面がある場所。" },
@@ -208,9 +271,9 @@
             { id: 100, yr: "過去問", tp: "記述", q: "最後に、測量技術者として最も重視すべき倫理観・姿勢について、「正確さ」という言葉を用いて自由に述べよ。（AIによる採点テスト）", ht: "測量法第一条の目的にもある通り、測量の根幹に関わる部分です。", md: "常に測量の正確さを確保することを最優先とし、データの改ざんや不適切な処理を行わず、社会のインフラ整備に寄与する誠実な姿勢。" }
         ];
 
-        // --- ステート管理 (旧バージョンからの引き継ぎ対応) ---
+        // --- ステート管理 ---
         const STORAGE_KEY = 'sokuryoshi_app_data_final';
-        let appData = { scores: {}, mastered: [], answers: {}, hideMastered: true, chatHistories: {} };
+        let appData = { scores: {}, mastered: [], answers: {}, hideMastered: true, chatHistories: {}, apiKey: "", gistToken: "", gistId: "" };
         let currentIndex = 0;
         let currentFilter = "すべて";
         const types = ["すべて", "穴埋め", "手続き", "記述", "正誤", "数値", "分類", "積算"];
@@ -221,27 +284,20 @@
             loadData();
             lucide.createIcons();
             document.getElementById('hide-mastered-toggle').checked = appData.hideMastered;
+            document.getElementById('api-key-input').value = appData.apiKey || "";
             renderFilters();
             setFilter("すべて"); 
         });
 
-        // データロード＆セーブ
         function loadData() {
             let saved = localStorage.getItem(STORAGE_KEY);
-            
-            // バージョンアップで消えた旧データの復旧処理
             if (!saved) {
                 const oldKeys = ['sokuryoshi_app_data_v6', 'sokuryoshi_app_data_v5', 'sokuryoshi_app_data_v4', 'sokuryoshi_app_data_v3'];
                 for (const key of oldKeys) {
                     saved = localStorage.getItem(key);
-                    if (saved) {
-                        console.log(`Recovered data from ${key}`);
-                        localStorage.setItem(STORAGE_KEY, saved);
-                        break;
-                    }
+                    if (saved) { localStorage.setItem(STORAGE_KEY, saved); break; }
                 }
             }
-
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
@@ -250,6 +306,9 @@
                     appData.answers = parsed.answers || {};
                     appData.hideMastered = parsed.hideMastered !== undefined ? parsed.hideMastered : true;
                     appData.chatHistories = parsed.chatHistories || {};
+                    appData.apiKey = parsed.apiKey || "";
+                    appData.gistToken = parsed.gistToken || "";
+                    appData.gistId = parsed.gistId || "";
                 } catch(e) { console.error('Failed to parse local storage'); }
             }
         }
@@ -305,18 +364,11 @@
         function navigate(direction) {
             if (filteredIndices.length === 0) return;
             const currentQId = QS[filteredIndices[currentIndex]].id;
-            
-            // 遷移時に改めてリストを再構築（正解してマスター済みになったものを除外するため）
             rebuildFilteredIndices();
-            
-            if (filteredIndices.length === 0) {
-                updateView();
-                return;
-            }
+            if (filteredIndices.length === 0) { updateView(); return; }
 
             let newIndex = filteredIndices.findIndex(idx => QS[idx].id === currentQId);
             if (newIndex === -1) {
-                // 今見ていた問題がマスターされて消えた場合、その位置から次に進む
                 if (direction > 0) currentIndex = currentIndex % filteredIndices.length;
                 else currentIndex = (currentIndex - 1 + filteredIndices.length) % filteredIndices.length;
             } else {
@@ -331,11 +383,8 @@
             const navContainer = document.getElementById('nav-container');
 
             if (filteredIndices.length === 0) {
-                let msg = currentFilter === "すべて" 
-                    ? "🎉 100問すべて完璧にマスターしました！素晴らしいです！"
-                    : `このカテゴリーの問題はすべて完璧です！`;
+                let msg = currentFilter === "すべて" ? "🎉 100問すべて完璧にマスターしました！素晴らしいです！" : `このカテゴリーの問題はすべて完璧です！`;
                 if(!appData.hideMastered && QS.length > 0) msg = "条件に一致する問題がありません。";
-
                 container.innerHTML = `
                     <div class="bg-white rounded-xl border-2 border-dashed border-emerald-200 p-10 text-center animate-fade-in shadow-sm">
                         <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -367,7 +416,6 @@
                 : "bg-white text-slate-500 border-slate-200 hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50";
             const masterBtnText = isMastered ? "完璧を解除" : "🌟 完璧！";
             const masterIcon = isMastered ? "star-off" : "star";
-
             const savedAns = appData.answers[q.id] || "";
 
             container.innerHTML = `
@@ -390,16 +438,11 @@
                     
                     <div id="hint-${globalIndex}" class="hidden mb-5 p-4 bg-blue-50 border border-blue-100 rounded-xl text-blue-900 text-xs md:text-sm flex gap-2.5 shadow-inner">
                         <i data-lucide="lightbulb" class="w-5 h-5 flex-shrink-0 text-blue-500 mt-0.5"></i>
-                        <div>
-                            <span class="font-black block mb-1 opacity-80 text-xs">ヒント</span>
-                            <p class="font-medium leading-relaxed">${q.ht}</p>
-                        </div>
+                        <div><span class="font-black block mb-1 opacity-80 text-xs">ヒント</span><p class="font-medium leading-relaxed">${q.ht}</p></div>
                     </div>
 
                     <div class="mb-5">
-                        <textarea id="answer-${globalIndex}" 
-                            class="w-full min-h-[100px] p-4 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all resize-y text-slate-800 text-sm md:text-sm font-medium shadow-inner placeholder:font-normal" 
-                            placeholder="ここに解答を入力してください..." oninput="saveAnswerTemp(${q.id}, this.value)">${savedAns}</textarea>
+                        <textarea id="answer-${globalIndex}" class="w-full min-h-[100px] p-4 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all resize-y text-slate-800 text-sm md:text-sm font-medium shadow-inner placeholder:font-normal" placeholder="ここに解答を入力してください..." oninput="saveAnswerTemp(${q.id}, this.value)">${savedAns}</textarea>
                     </div>
 
                     <div class="flex flex-wrap gap-2.5">
@@ -415,25 +458,16 @@
                     </div>
 
                     <div id="loading-${globalIndex}" class="hidden mt-6 flex flex-col items-center justify-center gap-2 text-emerald-600 font-bold p-6 bg-emerald-50 rounded-xl border border-emerald-100">
-                        <i data-lucide="loader-2" class="w-6 h-6 animate-spin"></i> 
-                        <span class="text-sm">AIが解答を分析中...</span>
+                        <i data-lucide="loader-2" class="w-6 h-6 animate-spin"></i> <span class="text-sm">AIが解答を分析中...</span>
                     </div>
 
                     <div id="feedback-${globalIndex}" class="hidden mt-6"></div>
                 </div>
             `;
             lucide.createIcons();
-
-            if (appData.chatHistories[q.id] && appData.chatHistories[q.id].length > 1) {
-                 // チャット履歴が存在する場合は、フィードバックを開いた状態にしないとチャットが見えないため、
-                 // 模範解答を見た状態として無理やり開くか、ここでは一旦何もしない（再度採点か解答確認で開く）
-            }
         }
 
-        function saveAnswerTemp(qId, val) {
-            appData.answers[qId] = val;
-            saveData();
-        }
+        function saveAnswerTemp(qId, val) { appData.answers[qId] = val; saveData(); }
 
         function toggleMaster(globalIndex) {
             const qId = QS[globalIndex].id;
@@ -467,8 +501,7 @@
 
         function toggleHint(index) {
             const hintEl = document.getElementById(`hint-${index}`);
-            hintEl.classList.toggle('hidden');
-            hintEl.classList.add('animate-fade-in');
+            hintEl.classList.toggle('hidden'); hintEl.classList.add('animate-fade-in');
         }
 
         function showModelAnswer(index) {
@@ -485,11 +518,7 @@
                 </div>
             `;
             lucide.createIcons();
-            if(!appData.scores[q.id]) {
-                appData.scores[q.id] = 'ng';
-                saveData();
-                updateBadgeDOM(index, 'ng');
-            }
+            if(!appData.scores[q.id]) { appData.scores[q.id] = 'ng'; saveData(); updateBadgeDOM(index, 'ng'); }
         }
 
         function updateBadgeDOM(index, scoreVal) {
@@ -505,12 +534,8 @@
         async function fetchWithRetry(url, options, maxRetries = 5) {
             const delays = [1000, 2000, 4000, 8000, 16000];
             for (let i = 0; i < maxRetries; i++) {
-                try {
-                    const response = await fetch(url, options);
-                    if (response.ok) return response;
-                } catch (error) {
-                    if (i === maxRetries - 1) throw error;
-                }
+                try { const response = await fetch(url, options); if (response.ok) return response; } 
+                catch (error) { if (i === maxRetries - 1) throw error; }
                 await delay(delays[i]);
             }
             throw new Error('All retries failed');
@@ -525,8 +550,7 @@
 
             const loadingEl = document.getElementById(`loading-${index}`);
             const feedbackEl = document.getElementById(`feedback-${index}`);
-            loadingEl.classList.remove('hidden');
-            feedbackEl.classList.add('hidden');
+            loadingEl.classList.remove('hidden'); feedbackEl.classList.add('hidden');
 
             const prompt = `あなたは測量士試験の厳密かつ穏やかな採点官です。以下の解答を採点しJSONで返してください。
             【問題の種類】${q.tp}
@@ -539,7 +563,9 @@
             appData.chatHistories[qId] = [{ role: "user", parts: [{ text: prompt }] }];
 
             try {
-                const apiKey = ""; 
+                const apiKey = appData.apiKey;
+                if (!apiKey) throw new Error("API_KEY_MISSING");
+
                 const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                     method: "POST", headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -567,7 +593,12 @@
             } catch (error) {
                 appData.chatHistories[qId] = []; 
                 let res = "要復習";
-                let reason = "オフラインのため簡易判定を行いました。";
+                let reason = error.message === "API_KEY_MISSING" 
+                    ? "APIキーが設定されていないため、簡易判定（AIなし）を行いました。" 
+                    : "オフラインまたは通信エラーのため簡易判定を行いました。";
+                
+                if (error.message === "API_KEY_MISSING") showToast('AI採点を利用するには設定からAPIキーを登録してください', 'info');
+
                 if (userAnswer.length > 0) res = "一部正解";
                 const keywords = q.md.replace(/[①②ア：イ：、。]/g, ' ').split(/\s+/).filter(k => k.length > 1);
                 let matchCount = 0;
@@ -596,7 +627,6 @@
 
             appData.scores[qId] = scoreVal;
             
-            // ★自動マスター機能：正解した場合、自動で完璧リストに追加する
             let autoMastered = false;
             if (scoreVal === 'ok' && !appData.mastered.includes(qId)) {
                 appData.mastered.push(qId);
@@ -631,7 +661,6 @@
                         </div>
                     </div>
                     
-                    <!-- 追加チャットUI -->
                     <div class="w-full mt-4 pt-4 border-t border-slate-200/60">
                         <div class="flex items-center gap-1.5 mb-2 text-slate-500 font-bold text-xs">
                             <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> AIへの質問・指摘
@@ -649,7 +678,6 @@
             feedbackEl.innerHTML = html;
             lucide.createIcons();
             
-            // 完璧ボタンの表示も更新
             const btn = document.getElementById(`master-btn-${index}`);
             const border = document.getElementById(`card-border-${index}`);
             if (btn && border && appData.mastered.includes(qId)) {
@@ -663,19 +691,14 @@
                 renderChatHistory(index);
             }
 
-            // 自動マスターされた旨を通知
             if (autoMastered) {
                 setTimeout(() => {
-                    if (appData.hideMastered) {
-                        showToast('🎉 正解！この問題はリストから隠れます（次へ進むと見えなくなります）', 'success');
-                    } else {
-                        showToast('🎉 正解！自動的に完璧リストに追加しました', 'success');
-                    }
+                    if (appData.hideMastered) showToast('🎉 正解！この問題はリストから隠れます', 'success');
+                    else showToast('🎉 正解！自動的に完璧リストに追加しました', 'success');
                 }, 800);
             }
         }
 
-        // --- チャット追加送信ロジック ---
         async function sendChatMessage(index) {
             const q = QS[index];
             const qId = q.id;
@@ -683,8 +706,9 @@
             const inputVal = inputEl.value.trim();
             
             if (!inputVal) return;
-            inputEl.value = '';
+            if (!appData.apiKey) { showToast('チャットを利用するには設定からAPIキーを登録してください', 'error'); return; }
 
+            inputEl.value = '';
             const chatLogEl = document.getElementById(`chat-log-${index}`);
             
             chatLogEl.innerHTML += `
@@ -711,8 +735,7 @@
             chatLogEl.scrollTop = chatLogEl.scrollHeight;
 
             try {
-                const apiKey = ""; 
-                const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${appData.apiKey}`, {
                     method: "POST", headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         contents: appData.chatHistories[qId],
@@ -729,7 +752,6 @@
                 saveData();
 
                 document.getElementById(loadingId).remove();
-                
                 const formattedReply = marked.parse ? marked.parse(replyText) : replyText.replace(/\n/g, '<br>');
                 chatLogEl.innerHTML += `
                     <div class="flex">
@@ -746,14 +768,13 @@
                 chatLogEl.innerHTML += `
                     <div class="flex">
                         <div class="bg-rose-50 border border-rose-200 text-rose-800 px-3 py-2 rounded-xl rounded-tl-sm max-w-[85%] text-xs shadow-sm">
-                            通信エラーが発生しました。時間を置いて再度お試しください。
+                            通信エラーが発生しました。
                         </div>
                     </div>
                 `;
             }
         }
 
-        // 過去のチャット履歴を描画
         function renderChatHistory(index) {
             const qId = QS[index].id;
             const history = appData.chatHistories[qId];
@@ -763,23 +784,10 @@
             for (let i = 2; i < history.length; i++) {
                 const msg = history[i];
                 if (msg.role === 'user') {
-                    chatLogEl.innerHTML += `
-                        <div class="flex justify-end">
-                            <div class="bg-emerald-100 text-emerald-900 border border-emerald-200 px-3 py-2 rounded-xl rounded-tr-sm max-w-[85%] text-xs font-medium shadow-sm">
-                                ${msg.parts[0].text}
-                            </div>
-                        </div>
-                    `;
+                    chatLogEl.innerHTML += `<div class="flex justify-end"><div class="bg-emerald-100 text-emerald-900 border border-emerald-200 px-3 py-2 rounded-xl rounded-tr-sm max-w-[85%] text-xs font-medium shadow-sm">${msg.parts[0].text}</div></div>`;
                 } else {
                     const formattedReply = marked.parse ? marked.parse(msg.parts[0].text) : msg.parts[0].text.replace(/\n/g, '<br>');
-                    chatLogEl.innerHTML += `
-                        <div class="flex">
-                            <div class="bg-white border border-slate-200 text-slate-800 px-4 py-3 rounded-xl rounded-tl-sm max-w-[95%] text-xs leading-relaxed shadow-sm markdown-body">
-                                <div class="font-black text-[10px] text-emerald-600 mb-1">AIアシスタント</div>
-                                ${formattedReply}
-                            </div>
-                        </div>
-                    `;
+                    chatLogEl.innerHTML += `<div class="flex"><div class="bg-white border border-slate-200 text-slate-800 px-4 py-3 rounded-xl rounded-tl-sm max-w-[95%] text-xs leading-relaxed shadow-sm markdown-body"><div class="font-black text-[10px] text-emerald-600 mb-1">AIアシスタント</div>${formattedReply}</div></div>`;
                 }
             }
         }
@@ -790,14 +798,151 @@
             document.getElementById('progress-bar').style.width = `${(completedCount / QS.length) * 100}%`;
         }
 
-        // --- カスタムトースト ---
+        // --- 設定＆データ移行モーダル ---
+        function showSettingsModal() {
+            document.getElementById('api-key-input').value = appData.apiKey || "";
+            document.getElementById('gist-token-input').value = appData.gistToken || "";
+            document.getElementById('gist-id-input').value = appData.gistId || "";
+            const modal = document.getElementById('settings-modal');
+            const content = document.getElementById('settings-modal-content');
+            modal.classList.remove('hidden'); modal.style.display = 'flex';
+            requestAnimationFrame(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); });
+        }
+        
+        function closeSettingsModal() {
+            const modal = document.getElementById('settings-modal');
+            const content = document.getElementById('settings-modal-content');
+            modal.classList.add('opacity-0'); content.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); modal.style.display = 'none'; }, 300);
+        }
+
+        function saveSettings() {
+            appData.apiKey = document.getElementById('api-key-input').value.trim();
+            appData.gistToken = document.getElementById('gist-token-input').value.trim();
+            appData.gistId = document.getElementById('gist-id-input').value.trim();
+            saveData();
+            closeSettingsModal();
+            showToast('設定を保存しました', 'success');
+        }
+
+        async function syncToCloud() {
+            const token = document.getElementById('gist-token-input').value.trim();
+            let gistId = document.getElementById('gist-id-input').value.trim();
+            if (!token) { showToast('GitHub Tokenを入力してください', 'error'); return; }
+
+            const btn = document.getElementById('btn-sync-up');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> 保存中...`;
+            lucide.createIcons();
+
+            appData.gistToken = token;
+
+            try {
+                if (!gistId) {
+                    const res = await fetch(`https://api.github.com/gists`, {
+                        method: 'POST',
+                        headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ description: "測量士午後対策アプリ セーブデータ", public: false, files: { "sokuryoshi_save.json": { content: JSON.stringify(appData, null, 2) } } })
+                    });
+                    if(!res.ok) throw new Error('API Error');
+                    const data = await res.json();
+                    gistId = data.id;
+                    appData.gistId = gistId;
+                    document.getElementById('gist-id-input').value = gistId;
+                    showToast('クラウドに新規作成＆保存しました！', 'success');
+                } else {
+                    const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+                        method: 'PATCH',
+                        headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ files: { "sokuryoshi_save.json": { content: JSON.stringify(appData, null, 2) } } })
+                    });
+                    if(!res.ok) throw new Error('API Error');
+                    appData.gistId = gistId;
+                    showToast('クラウドに上書き保存しました！', 'success');
+                }
+                saveData();
+            } catch (e) {
+                showToast('エラー：Token権限が不足しているか無効です', 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                lucide.createIcons();
+            }
+        }
+
+        async function syncFromCloud() {
+            const token = document.getElementById('gist-token-input').value.trim();
+            const gistId = document.getElementById('gist-id-input').value.trim();
+            if (!token || !gistId) { showToast('TokenとGist IDの両方を入力してください', 'error'); return; }
+
+            const btn = document.getElementById('btn-sync-down');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> 復元中...`;
+            lucide.createIcons();
+
+            try {
+                const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+                    headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
+                });
+                if(!res.ok) throw new Error('API Error');
+                const json = await res.json();
+                const content = json.files["sokuryoshi_save.json"].content;
+                const parsed = JSON.parse(content);
+                
+                if (parsed.scores !== undefined) {
+                    appData = parsed;
+                    appData.gistToken = token;
+                    appData.gistId = gistId;
+                    saveData();
+                    showToast('クラウドから復元しました！リロードします...', 'success');
+                    setTimeout(() => location.reload(), 1500);
+                }
+            } catch (e) {
+                showToast('復元失敗：IDが違うかTokenが無効です', 'error');
+            } finally {
+                btn.innerHTML = originalText;
+                lucide.createIcons();
+            }
+        }
+
+        function exportData() {
+            const dataStr = JSON.stringify(appData);
+            const blob = new Blob([dataStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `sokuryoshi_save_${new Date().toISOString().slice(0,10)}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('データを書き出しました', 'success');
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.scores !== undefined) {
+                        appData = parsed;
+                        saveData();
+                        closeSettingsModal();
+                        showToast('データを復元しました。画面をリロードします', 'success');
+                        setTimeout(() => location.reload(), 1500);
+                    } else { throw new Error("Invalid Format"); }
+                } catch(error) { showToast('ファイルの読み込みに失敗しました', 'error'); }
+            };
+            reader.readAsText(file);
+        }
+
+        // --- カスタムトースト & リセット用モーダル ---
         function showToast(msg, type='info') {
             const toast = document.getElementById('toast');
             const icon = document.getElementById('toast-icon');
             document.getElementById('toast-message').textContent = msg;
-            
             toast.className = `fixed bottom-5 left-1/2 -translate-x-1/2 opacity-0 transition-all duration-300 z-50 flex items-center gap-2 px-5 py-2.5 rounded-xl shadow-lg font-bold text-white text-sm min-w-[250px] justify-center transform translate-y-10`;
-            
             if(type === 'error') { toast.classList.add('bg-rose-600'); icon.setAttribute('data-lucide', 'alert-circle'); } 
             else if(type === 'success') { toast.classList.add('bg-emerald-600'); icon.setAttribute('data-lucide', 'check-circle-2'); } 
             else { toast.classList.add('bg-slate-800'); icon.setAttribute('data-lucide', 'info'); }
@@ -806,7 +951,6 @@
             setTimeout(() => toast.classList.add('opacity-0', 'translate-y-10'), 3000);
         }
 
-        // --- リセット用モーダル ---
         function showResetModal() {
             const modal = document.getElementById('reset-modal');
             const content = document.getElementById('reset-modal-content');
@@ -820,7 +964,9 @@
             setTimeout(() => { modal.classList.add('hidden'); modal.style.display = 'none'; }, 300);
         }
         function executeReset() {
-            appData = { scores: {}, mastered: [], answers: {}, hideMastered: document.getElementById('hide-mastered-toggle').checked, chatHistories: {} };
+            // APIキーだけはリセットせずに残す
+            const currentApiKey = appData.apiKey;
+            appData = { scores: {}, mastered: [], answers: {}, hideMastered: document.getElementById('hide-mastered-toggle').checked, chatHistories: {}, apiKey: currentApiKey };
             localStorage.removeItem(STORAGE_KEY);
             closeResetModal(); showToast('学習データをすべてリセットしました', 'success');
             currentIndex = 0; setFilter(currentFilter);
@@ -833,6 +979,3 @@
     </style>
 </body>
 </html>
-
-
-```
