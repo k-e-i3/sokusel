@@ -825,7 +825,7 @@
             showToast('設定を保存しました', 'success');
         }
 
-        async function syncToCloud() {
+       async function syncToCloud() {
             const token = document.getElementById('gist-token-input').value.trim();
             let gistId = document.getElementById('gist-id-input').value.trim();
             if (!token) { showToast('GitHub Tokenを入力してください', 'error'); return; }
@@ -837,12 +837,17 @@
 
             appData.gistToken = token;
 
+            // 【修正箇所】クラウドに送るデータから、APIキーとTokenを確実に削除する
+            const safeUploadData = { ...appData };
+            delete safeUploadData.apiKey;
+            delete safeUploadData.gistToken;
+
             try {
                 if (!gistId) {
                     const res = await fetch(`https://api.github.com/gists`, {
                         method: 'POST',
                         headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ description: "測量士午後対策アプリ セーブデータ", public: false, files: { "sokuryoshi_save.json": { content: JSON.stringify(appData, null, 2) } } })
+                        body: JSON.stringify({ description: "測量士午後対策アプリ セーブデータ", public: false, files: { "sokuryoshi_save.json": { content: JSON.stringify(safeUploadData, null, 2) } } })
                     });
                     if(!res.ok) throw new Error('API Error');
                     const data = await res.json();
@@ -854,7 +859,7 @@
                     const res = await fetch(`https://api.github.com/gists/${gistId}`, {
                         method: 'PATCH',
                         headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ files: { "sokuryoshi_save.json": { content: JSON.stringify(appData, null, 2) } } })
+                        body: JSON.stringify({ files: { "sokuryoshi_save.json": { content: JSON.stringify(safeUploadData, null, 2) } } })
                     });
                     if(!res.ok) throw new Error('API Error');
                     appData.gistId = gistId;
@@ -904,8 +909,14 @@
             }
         }
 
+// ついでに手動ファイル書き出しの方も安全にしました
         function exportData() {
-            const dataStr = JSON.stringify(appData);
+            // 【修正箇所】ダウンロードするファイルからもAPIキーとTokenを削除
+            const safeExportData = { ...appData };
+            delete safeExportData.apiKey;
+            delete safeExportData.gistToken;
+
+            const dataStr = JSON.stringify(safeExportData);
             const blob = new Blob([dataStr], { type: "application/json" });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
