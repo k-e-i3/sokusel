@@ -584,7 +584,7 @@ async function gradeAnswer(index) {
                 body: JSON.stringify({
                     contents: appData.chatHistories[qId],
                     generationConfig: {
-                        thinkingConfig: { thinkingBudget: 0 },  // Thinking無効化
+                        // thinkingConfig: { thinkingBudget: 0 },  // Thinking無効化
                         responseMimeType: "application/json",
                         responseSchema: {
                             type: "OBJECT",
