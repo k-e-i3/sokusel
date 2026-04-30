@@ -530,250 +530,185 @@
             lucide.createIcons();
         }
 
-        const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-        async function fetchWithRetry(url, options, maxRetries = 5) {
-            const delays = [1000, 2000, 4000, 8000, 16000];
-            for (let i = 0; i < maxRetries; i++) {
-                try { const response = await fetch(url, options); if (response.ok) return response; } 
-                catch (error) { if (i === maxRetries - 1) throw error; }
-                await delay(delays[i]);
+const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+async function fetchWithRetry(url, options, maxRetries = 5) {
+    const delays = [1000, 2000, 4000, 8000, 16000];
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            const response = await fetch(url, options);
+            if (response.ok) return response;
+            // 4xx はリトライ不要、即終了
+            if (response.status >= 400 && response.status < 500) {
+                const errBody = await response.json().catch(() => ({}));
+                throw new Error(`CLIENT_ERROR_${response.status}: ${JSON.stringify(errBody)}`);
             }
-            throw new Error('All retries failed');
+        } catch (error) {
+            if (i === maxRetries - 1) throw error;
+            if (error.message && error.message.startsWith('CLIENT_ERROR')) throw error;
         }
+        await delay(delays[i]);
+    }
+    throw new Error('All retries failed');
+}
 
-        // --- 採点ロジック ---
-        async function gradeAnswer(index) {
-            const q = QS[index];
-            const qId = q.id;
-            const userAnswer = document.getElementById(`answer-${index}`).value.trim();
-            if (!userAnswer) { showToast('解答が入力されていません！', 'error'); return; }
+async function gradeAnswer(index) {
+    const q = QS[index];
+    const qId = q.id;
+    const userAnswer = document.getElementById(`answer-${index}`).value.trim();
+    if (!userAnswer) { showToast('解答が入力されていません！', 'error'); return; }
 
-            const loadingEl = document.getElementById(`loading-${index}`);
-            const feedbackEl = document.getElementById(`feedback-${index}`);
-            loadingEl.classList.remove('hidden'); feedbackEl.classList.add('hidden');
+    const loadingEl = document.getElementById(`loading-${index}`);
+    const feedbackEl = document.getElementById(`feedback-${index}`);
+    loadingEl.classList.remove('hidden'); feedbackEl.classList.add('hidden');
 
-            const prompt = `あなたは測量士試験の厳密かつ穏やかな採点官です。以下の解答を採点しJSONで返してください。
-            【問題の種類】${q.tp}
-            【問題】${q.q}
-            【模範解答】${q.md}
-            【受験者の解答】${userAnswer}
-            
-            採点基準: 正解/一部正解/要復習。記号・穴埋めは厳密に。`;
+    const prompt = `あなたは測量士試験の厳密かつ穏やかな採点官です。以下の解答を採点しJSONで返してください。
+    【問題の種類】${q.tp}
+    【問題】${q.q}
+    【模範解答】${q.md}
+    【受験者の解答】${userAnswer}
+    
+    採点基準: 正解/一部正解/要復習。記号・穴埋めは厳密に。`;
 
-            appData.chatHistories[qId] = [{ role: "user", parts: [{ text: prompt }] }];
+    appData.chatHistories[qId] = [{ role: "user", parts: [{ text: prompt }] }];
 
-            try {
-                const apiKey = appData.apiKey;
-                if (!apiKey) throw new Error("API_KEY_MISSING");
+    try {
+        const apiKey = appData.apiKey;
+        if (!apiKey) throw new Error("API_KEY_MISSING");
 
-                const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${appData.apiKey}`, {
-                    method: "POST", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        contents: appData.chatHistories[qId],
-                        generationConfig: {
-                            responseMimeType: "application/json",
-                            responseSchema: {
-                                type: "OBJECT", properties: {
-                                    result: { type: "STRING", description: "'正解', '一部正解', '要復習' のいずれか" },
-                                    reason: { type: "STRING", description: "採点理由とアドバイス" },
-                                    missing: { type: "STRING", description: "不足キーワード" }
-                                }
+        const response = await fetchWithRetry(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: appData.chatHistories[qId],
+                    generationConfig: {
+                        thinkingConfig: { thinkingBudget: 0 },  // Thinking無効化
+                        responseMimeType: "application/json",
+                        responseSchema: {
+                            type: "OBJECT",
+                            required: ["result", "reason", "missing"],
+                            properties: {
+                                result:  { type: "STRING", description: "'正解', '一部正解', '要復習' のいずれか" },
+                                reason:  { type: "STRING", description: "採点理由とアドバイス" },
+                                missing: { type: "STRING", description: "不足キーワード（なければ空文字）" }
                             }
                         }
-                    })
-                });
-
-                const data = await response.json();
-                const replyText = data.candidates[0].content.parts[0].text;
-                appData.chatHistories[qId].push({ role: "model", parts: [{ text: replyText }] });
-                
-                const resultJSON = JSON.parse(replyText);
-                displayFeedback(index, resultJSON.result, resultJSON.reason, resultJSON.missing, q.md);
-
-            } catch (error) {
-                appData.chatHistories[qId] = []; 
-                let res = "要復習";
-                let reason = error.message === "API_KEY_MISSING" 
-                    ? "APIキーが設定されていないため、簡易判定（AIなし）を行いました。" 
-                    : "オフラインまたは通信エラーのため簡易判定を行いました。";
-                
-                if (error.message === "API_KEY_MISSING") showToast('AI採点を利用するには設定からAPIキーを登録してください', 'info');
-
-                if (userAnswer.length > 0) res = "一部正解";
-                const keywords = q.md.replace(/[①②ア：イ：、。]/g, ' ').split(/\s+/).filter(k => k.length > 1);
-                let matchCount = 0;
-                keywords.forEach(k => { if(userAnswer.includes(k)) matchCount++; });
-                if (matchCount > 0 && matchCount >= keywords.length / 2) res = "正解";
-                if (keywords.length === 0 && userAnswer === q.md) res = "正解";
-                displayFeedback(index, res, reason, "", q.md);
-            } finally {
-                loadingEl.classList.add('hidden');
+                    }
+                })
             }
+        );
+
+        const data = await response.json();
+        const replyText = data.candidates[0].content.parts[0].text;
+        appData.chatHistories[qId].push({ role: "model", parts: [{ text: replyText }] });
+
+        const resultJSON = JSON.parse(replyText);
+        displayFeedback(index, resultJSON.result, resultJSON.reason, resultJSON.missing, q.md);
+
+    } catch (error) {
+        appData.chatHistories[qId] = [];
+        let res = "要復習";
+        let reason = "";
+
+        if (error.message === "API_KEY_MISSING") {
+            reason = "APIキーが未設定のため簡易判定しました。";
+            showToast('AI採点にはAPIキーが必要です', 'info');
+        } else if (error.message && error.message.startsWith('CLIENT_ERROR')) {
+            reason = `APIエラーが発生しました。問題文の内容がフィルターに抵触した可能性があります。（${error.message.split(':')[0]}）`;
+            showToast('APIエラー（400）。この問題はAI採点できません', 'error');
+        } else {
+            reason = "通信エラーのため簡易判定しました。";
         }
 
-        function displayFeedback(index, result, reason, missing, modelAnswer) {
-            const qId = QS[index].id;
-            const feedbackEl = document.getElementById(`feedback-${index}`);
-            
-            let bgClass = "bg-rose-50 border-rose-200 text-rose-900";
-            let icon = "x-octagon"; let iconColor = "text-rose-500"; let iconBg = "bg-white border border-rose-100";
-            let scoreVal = 'ng';
+        const keywords = q.md.replace(/[①②ア：イ：、。]/g, ' ').split(/\s+/).filter(k => k.length > 1);
+        let matchCount = 0;
+        keywords.forEach(k => { if (userAnswer.includes(k)) matchCount++; });
+        if (matchCount >= keywords.length / 2 && keywords.length > 0) res = "正解";
+        else if (userAnswer.length > 0) res = "一部正解";
 
-            if (result.includes("正解") && !result.includes("一部")) {
-                bgClass = "bg-emerald-50 border-emerald-200 text-emerald-900"; icon = "check-circle-2"; iconColor = "text-emerald-500"; iconBg = "bg-white border border-emerald-100"; scoreVal = 'ok';
-            } else if (result.includes("一部")) {
-                bgClass = "bg-amber-50 border-amber-200 text-amber-900"; icon = "alert-triangle"; iconColor = "text-amber-500"; iconBg = "bg-white border border-amber-100"; scoreVal = 'pt';
+        displayFeedback(index, res, reason, "", q.md);
+    } finally {
+        loadingEl.classList.add('hidden');
+    }
+}
+
+async function sendChatMessage(index) {
+    const q = QS[index];
+    const qId = q.id;
+    const inputEl = document.getElementById(`chat-input-${index}`);
+    const inputVal = inputEl.value.trim();
+
+    if (!inputVal) return;
+    if (!appData.apiKey) { showToast('チャットにはAPIキーが必要です', 'error'); return; }
+
+    inputEl.value = '';
+    const chatLogEl = document.getElementById(`chat-log-${index}`);
+
+    chatLogEl.innerHTML += `
+        <div class="flex justify-end">
+            <div class="bg-emerald-100 text-emerald-900 border border-emerald-200 px-3 py-2 rounded-xl rounded-tr-sm max-w-[85%] text-xs font-medium shadow-sm">${inputVal}</div>
+        </div>`;
+    chatLogEl.scrollTop = chatLogEl.scrollHeight;
+
+    if (!appData.chatHistories[qId]) appData.chatHistories[qId] = [];
+    appData.chatHistories[qId].push({ role: "user", parts: [{ text: inputVal }] });
+
+    const loadingId = `chat-loading-${Date.now()}`;
+    chatLogEl.innerHTML += `
+        <div id="${loadingId}" class="flex">
+            <div class="bg-slate-100 border border-slate-200 text-slate-500 px-3 py-2 rounded-xl rounded-tl-sm text-xs flex items-center gap-2">
+                <i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> 回答を生成中...
+            </div>
+        </div>`;
+    lucide.createIcons();
+    chatLogEl.scrollTop = chatLogEl.scrollHeight;
+
+    try {
+        const response = await fetchWithRetry(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${appData.apiKey}`,
+            {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contents: appData.chatHistories[qId],
+                    generationConfig: {
+                        thinkingConfig: { thinkingBudget: 1024 }  // チャットは少し思考させる
+                    },
+                    systemInstruction: {
+                        parts: [{ text: "あなたは測量士試験の専門家です。ユーザーの質問・指摘に対して専門的かつ謙虚に答えてください。過去の採点や解説に誤りがあれば素直に認め正しい解説を提供してください。出力はプレーンテキスト（Markdown可）で行ってください。" }]
+                    }
+                })
             }
+        );
 
-            appData.scores[qId] = scoreVal;
-            
-            let autoMastered = false;
-            if (scoreVal === 'ok' && !appData.mastered.includes(qId)) {
-                appData.mastered.push(qId);
-                autoMastered = true;
-            }
-            saveData();
-            updateBadgeDOM(index, scoreVal);
+        const data = await response.json();
+        const replyText = data.candidates[0].content.parts[0].text;
 
-            let html = `
-                <div class="flex flex-col items-start gap-4">
-                    <div class="flex items-start gap-4 w-full">
-                        <div class="${iconBg} p-2 rounded-xl flex-shrink-0 mt-1 shadow-sm"><i data-lucide="${icon}" class="w-6 h-6 ${iconColor}"></i></div>
-                        <div class="w-full">
-                            <h3 class="font-black text-lg md:text-xl mb-2 flex items-center gap-2">${result}</h3>
-                            <p class="mb-3 text-sm font-medium leading-relaxed bg-white/70 p-4 rounded-xl shadow-sm border border-black/5">${reason}</p>
-            `;
+        appData.chatHistories[qId].push({ role: "model", parts: [{ text: replyText }] });
+        saveData();
 
-            if (missing && missing.trim() !== "") {
-                html += `
-                            <div class="mb-3 p-3 bg-white/90 rounded-lg border border-rose-100 text-xs shadow-sm flex gap-2 items-start">
-                                <i data-lucide="target" class="w-4 h-4 text-rose-500 flex-shrink-0 mt-0.5"></i>
-                                <div><span class="font-bold block mb-0.5 text-rose-800">不足ポイント:</span><span class="text-rose-600 font-bold">${missing}</span></div>
-                            </div>
-                `;
-            }
-
-            html += `
-                            <div class="pt-3 mt-1 border-t border-black/5">
-                                <span class="font-black opacity-40 text-[10px] block mb-1 uppercase tracking-widest">Model Answer</span>
-                                <div class="text-sm font-bold whitespace-pre-wrap">${modelAnswer}</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="w-full mt-4 pt-4 border-t border-slate-200/60">
-                        <div class="flex items-center gap-1.5 mb-2 text-slate-500 font-bold text-xs">
-                            <i data-lucide="message-circle" class="w-3.5 h-3.5"></i> AIへの質問・指摘
-                        </div>
-                        <div id="chat-log-${index}" class="max-h-60 overflow-y-auto pr-1 flex flex-col gap-3 mb-3 text-sm"></div>
-                        <div class="flex gap-2">
-                            <input type="text" id="chat-input-${index}" class="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 shadow-sm" placeholder="解説に疑問や間違いがあれば指摘してください...">
-                            <button onclick="sendChatMessage(${index})" class="bg-slate-700 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-slate-600 transition-colors shadow-sm whitespace-nowrap">送信</button>
-                        </div>
-                    </div>
+        document.getElementById(loadingId)?.remove();
+        const formattedReply = marked.parse ? marked.parse(replyText) : replyText.replace(/\n/g, '<br>');
+        chatLogEl.innerHTML += `
+            <div class="flex">
+                <div class="bg-white border border-slate-200 text-slate-800 px-4 py-3 rounded-xl rounded-tl-sm max-w-[95%] text-xs leading-relaxed shadow-sm markdown-body">
+                    <div class="font-black text-[10px] text-emerald-600 mb-1">AIアシスタント</div>
+                    ${formattedReply}
                 </div>
-            `;
+            </div>`;
+        chatLogEl.scrollTop = chatLogEl.scrollHeight;
 
-            feedbackEl.className = `mt-6 p-5 md:p-6 rounded-2xl border block animate-fade-in shadow-md ${bgClass}`;
-            feedbackEl.innerHTML = html;
-            lucide.createIcons();
-            
-            const btn = document.getElementById(`master-btn-${index}`);
-            const border = document.getElementById(`card-border-${index}`);
-            if (btn && border && appData.mastered.includes(qId)) {
-                btn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors shadow-sm bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200";
-                btn.innerHTML = `<i data-lucide="star-off" class="w-3.5 h-3.5"></i> <span>完璧を解除</span>`;
-                border.className = "absolute top-0 left-0 w-1 h-full bg-amber-400 transition-colors duration-300";
-                lucide.createIcons();
-            }
-
-            if (appData.chatHistories[qId] && appData.chatHistories[qId].length > 2) {
-                renderChatHistory(index);
-            }
-
-            if (autoMastered) {
-                setTimeout(() => {
-                    if (appData.hideMastered) showToast('🎉 正解！この問題はリストから隠れます', 'success');
-                    else showToast('🎉 正解！自動的に完璧リストに追加しました', 'success');
-                }, 800);
-            }
-        }
-
-        async function sendChatMessage(index) {
-            const q = QS[index];
-            const qId = q.id;
-            const inputEl = document.getElementById(`chat-input-${index}`);
-            const inputVal = inputEl.value.trim();
-            
-            if (!inputVal) return;
-            if (!appData.apiKey) { showToast('チャットを利用するには設定からAPIキーを登録してください', 'error'); return; }
-
-            inputEl.value = '';
-            const chatLogEl = document.getElementById(`chat-log-${index}`);
-            
-            chatLogEl.innerHTML += `
-                <div class="flex justify-end">
-                    <div class="bg-emerald-100 text-emerald-900 border border-emerald-200 px-3 py-2 rounded-xl rounded-tr-sm max-w-[85%] text-xs font-medium shadow-sm">
-                        ${inputVal}
-                    </div>
-                </div>
-            `;
-            chatLogEl.scrollTop = chatLogEl.scrollHeight;
-
-            if (!appData.chatHistories[qId]) appData.chatHistories[qId] = [];
-            appData.chatHistories[qId].push({ role: "user", parts: [{ text: inputVal }] });
-
-            const loadingId = `chat-loading-${Date.now()}`;
-            chatLogEl.innerHTML += `
-                <div id="${loadingId}" class="flex">
-                    <div class="bg-slate-100 border border-slate-200 text-slate-500 px-3 py-2 rounded-xl rounded-tl-sm text-xs flex items-center gap-2">
-                        <i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> 回答を生成中...
-                    </div>
-                </div>
-            `;
-            lucide.createIcons();
-            chatLogEl.scrollTop = chatLogEl.scrollHeight;
-            try {
-                const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${appData.apiKey}`, {
-                    method: "POST", headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        contents: appData.chatHistories[qId],
-                        systemInstruction: {
-                            parts: [{text: "あなたは測量士試験の専門家です。ユーザーからの質問や強い指摘（怒りを含む）に対して、専門的かつ非常に謙虚に答えてください。もし過去の採点や解説、問題文自体に誤りがあった場合は素直に謝罪して認め、正しい解説を提供してください。出力はJSONではなくプレーンテキスト（Markdown可）で行ってください。"}]
-                        }
-                    })
-                });
-
-                const data = await response.json();
-                const replyText = data.candidates[0].content.parts[0].text;
-                
-                appData.chatHistories[qId].push({ role: "model", parts: [{ text: replyText }] });
-                saveData();
-
-                document.getElementById(loadingId).remove();
-                const formattedReply = marked.parse ? marked.parse(replyText) : replyText.replace(/\n/g, '<br>');
-                chatLogEl.innerHTML += `
-                    <div class="flex">
-                        <div class="bg-white border border-slate-200 text-slate-800 px-4 py-3 rounded-xl rounded-tl-sm max-w-[95%] text-xs leading-relaxed shadow-sm markdown-body">
-                            <div class="font-black text-[10px] text-emerald-600 mb-1">AIアシスタント</div>
-                            ${formattedReply}
-                        </div>
-                    </div>
-                `;
-                chatLogEl.scrollTop = chatLogEl.scrollHeight;
-
-            } catch (error) {
-                document.getElementById(loadingId)?.remove();
-                chatLogEl.innerHTML += `
-                    <div class="flex">
-                        <div class="bg-rose-50 border border-rose-200 text-rose-800 px-3 py-2 rounded-xl rounded-tl-sm max-w-[85%] text-xs shadow-sm">
-                            通信エラーが発生しました。
-                        </div>
-                    </div>
-                `;
-            }
-        }
-
+    } catch (error) {
+        document.getElementById(loadingId)?.remove();
+        const msg = error.message?.startsWith('CLIENT_ERROR') ? 'APIエラーが発生しました' : '通信エラーが発生しました';
+        chatLogEl.innerHTML += `
+            <div class="flex">
+                <div class="bg-rose-50 border border-rose-200 text-rose-800 px-3 py-2 rounded-xl rounded-tl-sm max-w-[85%] text-xs shadow-sm">${msg}</div>
+            </div>`;
+    }
+}
         function renderChatHistory(index) {
             const qId = QS[index].id;
             const history = appData.chatHistories[qId];
