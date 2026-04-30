@@ -521,6 +521,51 @@
             if(!appData.scores[q.id]) { appData.scores[q.id] = 'ng'; saveData(); updateBadgeDOM(index, 'ng'); }
         }
 
+function displayFeedback(index, result, reason, missing, modelAnswer) {
+    const fbEl = document.getElementById(`feedback-${index}`);
+    if (!fbEl) return;
+    
+    fbEl.className = 'mt-6 p-5 md:p-6 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 block animate-fade-in shadow-sm';
+    
+    let badgeHtml = '';
+    let scoreVal = 'ng';
+    if (result === '正解') {
+        badgeHtml = '<span class="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-800 rounded text-xs font-bold border border-emerald-200"><i data-lucide="check-circle-2" class="w-4 h-4"></i> 正解</span>';
+        scoreVal = 'ok';
+    } else if (result === '一部正解') {
+        badgeHtml = '<span class="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-800 rounded text-xs font-bold border border-amber-200"><i data-lucide="alert-circle" class="w-4 h-4"></i> 部分点</span>';
+        scoreVal = 'pt';
+    } else {
+        badgeHtml = '<span class="inline-flex items-center gap-1 px-2 py-1 bg-rose-100 text-rose-800 rounded text-xs font-bold border border-rose-200"><i data-lucide="x-circle" class="w-4 h-4"></i> 要復習</span>';
+        scoreVal = 'ng';
+    }
+
+    let missingHtml = missing ? `<div class="mt-3 text-xs font-bold text-rose-600 bg-rose-50 p-2.5 rounded border border-rose-100"><i data-lucide="alert-triangle" class="w-3.5 h-3.5 inline mb-0.5"></i> 不足キーワード: ${missing}</div>` : '';
+
+    fbEl.innerHTML = `
+        <div class="mb-4">
+            <div class="flex items-center gap-2 mb-3">${badgeHtml}</div>
+            <p class="whitespace-pre-wrap text-sm md:text-sm font-medium leading-relaxed">${reason}</p>
+            ${missingHtml}
+        </div>
+        <div class="flex items-start gap-3 border-t border-slate-200 pt-4 mt-4">
+            <div class="bg-white p-1.5 rounded-lg shadow-sm border border-slate-200 mt-0.5"><i data-lucide="book-open" class="w-5 h-5 text-slate-600"></i></div>
+            <div class="w-full">
+                <h3 class="font-black text-xs mb-1 text-slate-500 tracking-wider">模範解答</h3>
+                <p class="whitespace-pre-wrap text-sm md:text-sm font-medium leading-relaxed">${modelAnswer}</p>
+            </div>
+        </div>
+    `;
+    
+    lucide.createIcons();
+    
+    // スコアを保存して上部のバッジを更新
+    const qId = QS[index].id;
+    appData.scores[qId] = scoreVal;
+    saveData();
+    updateBadgeDOM(index, scoreVal);
+}
+
         function updateBadgeDOM(index, scoreVal) {
             const badgeContainer = document.getElementById(`status-badge-container-${index}`);
             if (!badgeContainer) return;
