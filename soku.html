@@ -462,6 +462,22 @@
                     </div>
 
                     <div id="feedback-${globalIndex}" class="hidden mt-6"></div>
+
+<!-- ↓ここからチャット欄を追加↓ -->
+                    <div class="mt-8 pt-6 border-t border-slate-200">
+                        <h3 class="font-black text-sm text-slate-700 mb-4 flex items-center gap-2">
+                            <i data-lucide="message-square" class="w-4 h-4 text-blue-500"></i> AIに質問・反論する
+                        </h3>
+                        <div id="chat-log-${globalIndex}" class="max-h-60 overflow-y-auto mb-3 space-y-3 flex flex-col"></div>
+                        <div class="flex gap-2">
+                            <input type="text" id="chat-input-${globalIndex}" class="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all" placeholder="採点に納得がいかない場合などはここへ..." onkeypress="if(event.key === 'Enter') sendChatMessage(${globalIndex})">
+                            <button onclick="sendChatMessage(${globalIndex})" class="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-bold text-sm transition-colors shadow-sm whitespace-nowrap">
+                                <i data-lucide="send" class="w-4 h-4"></i> 送信
+                            </button>
+                        </div>
+                    </div>
+<!-- ↑ここまで↑ -->
+                    
                 </div>
             `;
             lucide.createIcons();
