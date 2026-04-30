@@ -629,7 +629,6 @@ async function gradeAnswer(index) {
                 body: JSON.stringify({
                     contents: appData.chatHistories[qId],
                     generationConfig: {
-                        // thinkingConfig: { thinkingBudget: 0 },  // Thinking無効化
                         responseMimeType: "application/json",
                         responseSchema: {
                             type: "OBJECT",
@@ -718,9 +717,6 @@ async function sendChatMessage(index) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     contents: appData.chatHistories[qId],
-                    //generationConfig: {
-                   //    thinkingConfig: { thinkingBudget: 1024 }  // チャットは少し思考させる
-                  // },
                     systemInstruction: {
                         parts: [{ text: "あなたは測量士試験の専門家です。ユーザーの質問・指摘に対して専門的かつ謙虚に答えてください。過去の採点や解説に誤りがあれば素直に認め正しい解説を提供してください。出力はプレーンテキスト（Markdown可）で行ってください。" }]
                     }
