@@ -106,9 +106,10 @@
             </div>
             
             <div class="mb-6">
-                <label class="block text-sm font-bold text-slate-700 mb-2">1. AI採点用 APIキー（Gemini API）</label>
-                <input type="password" id="api-key-input" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 mb-1" placeholder="AI Studioで取得したキーを入力">
-                <p class="text-[10px] text-slate-500">※ブラウザ内にのみ保存されます。空欄時は「簡易判定(AIなし)」になります。</p>
+                <label class="block text-sm font-bold text-slate-700 mb-2">1. AI採点用 APIキー</label>
+                <input type="password" id="groq-api-key-input" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 mb-2" placeholder="Groq APIキー (推奨 / 高速)">
+                <input type="password" id="api-key-input" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 mb-1" placeholder="Gemini APIキー (予備 / 制限対策)">
+                <p class="text-[10px] text-slate-500">※Groqを優先して使用します。Groqキーが空、またはエラーになった場合はGeminiを自動的に使用します。</p>
             </div>
 
             <div class="mb-6 border-t border-slate-100 pt-4">
@@ -201,6 +202,7 @@
             lucide.createIcons();
             document.getElementById('hide-mastered-toggle').checked = appData.hideMastered;
             document.getElementById('api-key-input').value = appData.apiKey || "";
+            document.getElementById('groq-api-key-input').value = appData.groqApiKey || "";
             setCategory("午後必須"); 
         });
 
@@ -217,11 +219,20 @@
                 try {
                     const parsed = JSON.parse(saved);
                     appData.scores = parsed.scores || {};
+                    
+                    // 移行処理: ok -> 5, pt -> 3, ng -> 1
+                    for (let qid in appData.scores) {
+                        if (appData.scores[qid] === 'ok') appData.scores[qid] = 5;
+                        else if (appData.scores[qid] === 'pt') appData.scores[qid] = 3;
+                        else if (appData.scores[qid] === 'ng') appData.scores[qid] = 1;
+                    }
+
                     appData.mastered = parsed.mastered || [];
                     appData.answers = parsed.answers || {};
                     appData.hideMastered = parsed.hideMastered !== undefined ? parsed.hideMastered : true;
                     appData.chatHistories = parsed.chatHistories || {};
                     appData.apiKey = parsed.apiKey || "";
+                    appData.groqApiKey = parsed.groqApiKey || "";
                     appData.gistToken = parsed.gistToken || "";
                     appData.gistId = parsed.gistId || "";
                 } catch(e) { console.error('Failed to parse local storage'); }
@@ -352,9 +363,9 @@
 
             const scoreStatus = appData.scores[q.id];
             let statusBadge = '';
-            if (scoreStatus === 'ok') statusBadge = '<span class="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded text-xs font-bold border border-emerald-200"><i data-lucide="check-circle-2" class="w-3 h-3"></i>正解</span>';
-            else if (scoreStatus === 'pt') statusBadge = '<span class="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-xs font-bold border border-amber-200"><i data-lucide="alert-circle" class="w-3 h-3"></i>部分点</span>';
-            else if (scoreStatus === 'ng') statusBadge = '<span class="flex items-center gap-1 px-2 py-0.5 bg-rose-100 text-rose-800 rounded text-xs font-bold border border-rose-200"><i data-lucide="x-circle" class="w-3 h-3"></i>要復習</span>';
+            if (scoreStatus >= 5) statusBadge = '<span class="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded text-xs font-bold border border-emerald-200"><i data-lucide="check-circle-2" class="w-3 h-3"></i>5 / 5点</span>';
+            else if (scoreStatus >= 3) statusBadge = '<span class="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-xs font-bold border border-amber-200"><i data-lucide="alert-circle" class="w-3 h-3"></i>' + scoreStatus + ' / 5点</span>';
+            else if (scoreStatus >= 1) statusBadge = '<span class="flex items-center gap-1 px-2 py-0.5 bg-rose-100 text-rose-800 rounded text-xs font-bold border border-rose-200"><i data-lucide="x-circle" class="w-3 h-3"></i>' + scoreStatus + ' / 5点</span>';
 
             const isMastered = appData.mastered.includes(q.id);
             const masterBtnClass = isMastered 
@@ -411,9 +422,14 @@
 
 <!-- ↓ここからチャット欄を追加↓ -->
                     <div class="mt-8 pt-6 border-t border-slate-200">
-                        <h3 class="font-black text-sm text-slate-700 mb-4 flex items-center gap-2">
-                            <i data-lucide="message-square" class="w-4 h-4 text-blue-500"></i> AIに質問・反論する
-                        </h3>
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-black text-sm text-slate-700 flex items-center gap-2">
+                                <i data-lucide="message-square" class="w-4 h-4 text-blue-500"></i> AIに質問・反論する
+                            </h3>
+                            <button onclick="clearChat(${globalIndex})" class="text-xs text-rose-500 hover:text-rose-700 font-bold flex items-center gap-1">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> 履歴を消す
+                            </button>
+                        </div>
                         <div id="chat-log-${globalIndex}" class="max-h-60 overflow-y-auto mb-3 space-y-3 flex flex-col"></div>
                         <div class="flex gap-2">
                             <input type="text" id="chat-input-${globalIndex}" class="flex-1 bg-white border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all" placeholder="採点に納得がいかない場合などはここへ..." onkeypress="if(event.key === 'Enter') sendChatMessage(${globalIndex})">
@@ -427,6 +443,39 @@
                 </div>
             `;
             lucide.createIcons();
+            
+            // チャット履歴の復元
+            const chatLogEl = document.getElementById(`chat-log-${globalIndex}`);
+            if (chatLogEl && appData.chatHistories[q.id]) {
+                const history = appData.chatHistories[q.id];
+                for (let i = 1; i < history.length; i++) { // index 0 is system prompt
+                    const msg = history[i];
+                    if (msg.role === 'user') {
+                        chatLogEl.innerHTML += `
+                            <div class="flex justify-end">
+                                <div class="bg-emerald-100 text-emerald-900 border border-emerald-200 px-3 py-2 rounded-xl rounded-tr-sm max-w-[85%] text-xs font-medium shadow-sm">${msg.parts[0].text}</div>
+                            </div>`;
+                    } else if (msg.role === 'model') {
+                        let parsedModelTxt = msg.parts[0].text;
+                        try {
+                            const parsed = JSON.parse(parsedModelTxt);
+                            if(parsed.reason) parsedModelTxt = parsed.reason; 
+                        } catch(e){}
+                        const formattedReply = marked.parse(parsedModelTxt);
+                        chatLogEl.innerHTML += `<div class="flex"><div class="bg-white border border-slate-200 text-slate-800 px-4 py-3 rounded-xl rounded-tl-sm max-w-[95%] text-xs leading-relaxed shadow-sm markdown-body"><div class="font-black text-[10px] text-emerald-600 mb-1">AIアシスタント</div>${formattedReply}</div></div>`;
+                    }
+                }
+                chatLogEl.scrollTop = chatLogEl.scrollHeight;
+            }
+        }
+
+        function clearChat(index) {
+            if(!confirm("この問題のチャット履歴を削除しますか？\\n※採点結果はそのまま残ります。")) return;
+            const qId = QS[index].id;
+            appData.chatHistories[qId] = [];
+            saveData();
+            document.getElementById(`chat-log-${index}`).innerHTML = '';
+            showToast('チャット履歴を削除しました', 'info');
         }
 
         function saveAnswerTemp(qId, val) { appData.answers[qId] = val; saveData(); }
@@ -480,26 +529,25 @@
                 </div>
             `;
             lucide.createIcons();
-            if(!appData.scores[q.id]) { appData.scores[q.id] = 'ng'; saveData(); updateBadgeDOM(index, 'ng'); }
+            if(!appData.scores[q.id]) { appData.scores[q.id] = 1; saveData(); updateBadgeDOM(index, 1); }
         }
 
-function displayFeedback(index, result, reason, missing, modelAnswer) {
+function displayFeedback(index, score, reason, missing, modelAnswer) {
     const fbEl = document.getElementById(`feedback-${index}`);
     if (!fbEl) return;
     
     fbEl.className = 'mt-6 p-5 md:p-6 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 block animate-fade-in shadow-sm';
     
     let badgeHtml = '';
-    let scoreVal = 'ng';
-    if (result === '正解') {
-        badgeHtml = '<span class="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-800 rounded text-xs font-bold border border-emerald-200"><i data-lucide="check-circle-2" class="w-4 h-4"></i> 正解</span>';
-        scoreVal = 'ok';
-    } else if (result === '一部正解') {
-        badgeHtml = '<span class="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-800 rounded text-xs font-bold border border-amber-200"><i data-lucide="alert-circle" class="w-4 h-4"></i> 部分点</span>';
-        scoreVal = 'pt';
+    const scoreVal = parseInt(score) || 1;
+    let stars = '⭐'.repeat(scoreVal);
+    
+    if (scoreVal >= 5) {
+        badgeHtml = '<span class="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-800 rounded text-xs font-bold border border-emerald-200"><i data-lucide="check-circle-2" class="w-4 h-4"></i> ' + stars + ' 5 / 5点</span>';
+    } else if (scoreVal >= 3) {
+        badgeHtml = '<span class="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-800 rounded text-xs font-bold border border-amber-200"><i data-lucide="alert-circle" class="w-4 h-4"></i> ' + stars + ' ' + scoreVal + ' / 5点</span>';
     } else {
-        badgeHtml = '<span class="inline-flex items-center gap-1 px-2 py-1 bg-rose-100 text-rose-800 rounded text-xs font-bold border border-rose-200"><i data-lucide="x-circle" class="w-4 h-4"></i> 要復習</span>';
-        scoreVal = 'ng';
+        badgeHtml = '<span class="inline-flex items-center gap-1 px-2 py-1 bg-rose-100 text-rose-800 rounded text-xs font-bold border border-rose-200"><i data-lucide="x-circle" class="w-4 h-4"></i> ' + stars + ' ' + scoreVal + ' / 5点</span>';
     }
 
     let missingHtml = missing ? `<div class="mt-3 text-xs font-bold text-rose-600 bg-rose-50 p-2.5 rounded border border-rose-100"><i data-lucide="alert-triangle" class="w-3.5 h-3.5 inline mb-0.5"></i> 不足キーワード: ${missing}</div>` : '';
@@ -531,9 +579,9 @@ function displayFeedback(index, result, reason, missing, modelAnswer) {
         function updateBadgeDOM(index, scoreVal) {
             const badgeContainer = document.getElementById(`status-badge-container-${index}`);
             if (!badgeContainer) return;
-            if (scoreVal === 'ok') badgeContainer.innerHTML = '<span class="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded text-xs font-bold border border-emerald-200"><i data-lucide="check-circle-2" class="w-3 h-3"></i>正解</span>';
-            else if (scoreVal === 'pt') badgeContainer.innerHTML = '<span class="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-xs font-bold border border-amber-200"><i data-lucide="alert-circle" class="w-3 h-3"></i>部分点</span>';
-            else if (scoreVal === 'ng') badgeContainer.innerHTML = '<span class="flex items-center gap-1 px-2 py-0.5 bg-rose-100 text-rose-800 rounded text-xs font-bold border border-rose-200"><i data-lucide="x-circle" class="w-3 h-3"></i>要復習</span>';
+            if (scoreVal >= 5) badgeContainer.innerHTML = '<span class="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded text-xs font-bold border border-emerald-200"><i data-lucide="check-circle-2" class="w-3 h-3"></i>5 / 5点</span>';
+            else if (scoreVal >= 3) badgeContainer.innerHTML = '<span class="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-xs font-bold border border-amber-200"><i data-lucide="alert-circle" class="w-3 h-3"></i>' + scoreVal + ' / 5点</span>';
+            else if (scoreVal >= 1) badgeContainer.innerHTML = '<span class="flex items-center gap-1 px-2 py-0.5 bg-rose-100 text-rose-800 rounded text-xs font-bold border border-rose-200"><i data-lucide="x-circle" class="w-3 h-3"></i>' + scoreVal + ' / 5点</span>';
             lucide.createIcons();
         }
 
@@ -559,6 +607,92 @@ async function fetchWithRetry(url, options, maxRetries = 5) {
     throw new Error('All retries failed');
 }
 
+async function callLLM(history, isJsonMode = false, systemInstructionText = null) {
+    let errorLog = [];
+    
+    // 1. Groq (Llama-3.3-70b-versatile)
+    if (appData.groqApiKey) {
+        try {
+            let groqMessages = [];
+            if (systemInstructionText) {
+                groqMessages.push({ role: 'system', content: systemInstructionText });
+            }
+            
+            groqMessages = groqMessages.concat(history.map(m => {
+                let text = m.parts[0].text;
+                return {
+                    role: m.role === 'model' ? 'assistant' : m.role,
+                    content: text
+                };
+            }));
+            
+            const reqBody = {
+                model: "llama-3.3-70b-versatile",
+                messages: groqMessages,
+                temperature: 0.7
+            };
+            if (isJsonMode) reqBody.response_format = { type: "json_object" };
+
+            const response = await fetchWithRetry("https://api.groq.com/openai/v1/chat/completions", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${appData.groqApiKey}`
+                },
+                body: JSON.stringify(reqBody)
+            });
+            const data = await response.json();
+            if(data.error) throw new Error(data.error.message || "Groq Error");
+            return data.choices[0].message.content;
+        } catch (e) {
+            console.warn("Groq failed, falling back to Gemini", e);
+            errorLog.push("Groqエラー: " + e.message);
+        }
+    }
+
+    // 2. Gemini Fallback
+    if (appData.apiKey) {
+        try {
+            const reqBody = { contents: history, generationConfig: {} };
+            
+            if (systemInstructionText) {
+                reqBody.systemInstruction = { parts: [{ text: systemInstructionText }] };
+            }
+            
+            if (isJsonMode) {
+                reqBody.generationConfig.responseMimeType = "application/json";
+                reqBody.generationConfig.responseSchema = {
+                    type: "OBJECT",
+                    required: ["score", "reason", "missing"],
+                    properties: {
+                        score:   { type: "INTEGER", description: "1から5までの点数" },
+                        reason:  { type: "STRING", description: "採点理由とアドバイス" },
+                        missing: { type: "STRING", description: "不足キーワード（なければ空文字）" }
+                    }
+                };
+            }
+
+            const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${appData.apiKey}`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(reqBody)
+            });
+            const data = await response.json();
+            if(data.error) throw new Error(data.error.message || "Gemini Error");
+            return data.candidates[0].content.parts[0].text;
+        } catch(e) {
+            console.warn("Gemini failed", e);
+            errorLog.push("Geminiエラー: " + e.message);
+        }
+    }
+
+    if (errorLog.length > 0) {
+        throw new Error("CLIENT_ERROR: " + errorLog.join(" / "));
+    } else {
+        throw new Error("API_KEY_MISSING");
+    }
+}
+
 async function gradeAnswer(index) {
     const q = QS[index];
     const qId = q.id;
@@ -575,50 +709,28 @@ async function gradeAnswer(index) {
     【模範解答】${q.md}
     【受験者の解答】${userAnswer}
     
-    採点基準: 判定は「正解」「一部正解」「要復習」のいずれか。
-    ・穴埋め問題の場合、解答に「ア：〇〇」のように記号が含まれていても、実質的な内容（〇〇の部分）が合っていれば「正解」としてください。
-    ・記述問題の場合、一言一句同じである必要はありません。重要なキーワードが含まれており、意味や文脈が模範解答と合致していれば、語順が違っても柔軟に「正解」としてください。
-    ・特に重要：受験者の解答に、模範解答には無い「正しい付加情報（例：～の検定を受け、等）」が含まれていたり、より詳細に記述されている場合は、絶対に減点せず「正解」としてください。明らかに間違ったことを言っていない限り、極めて寛容に「正解」と判定してください。`;
+    採点基準: 模範解答とのニュアンスの違いやキーワードの網羅度に基づき、1〜5の整数で点数をつけてください。
+    5点: 完全に正解、または付加情報があり素晴らしい。
+    3〜4点: 部分的に正解、または意味は通じるが重要語句が少し足りない。
+    1〜2点: 明らかに不正解、または無関係。
+    
+    ・穴埋め問題の場合、解答に「ア：〇〇」のように記号が含まれていても、実質的な内容（〇〇の部分）が合っていれば「5点」としてください。
+    ・記述問題の場合、一言一句同じである必要はありません。重要なキーワードが含まれており、意味や文脈が模範解答と合致していれば、語順が違っても柔軟に高得点としてください。
+    ・特に重要：受験者の解答に、模範解答には無い「正しい付加情報（例：～の検定を受け、等）」が含まれていたり、より詳細に記述されている場合は、絶対に減点せず「5点」としてください。明らかに間違ったことを言っていない限り、極めて寛容に採点してください。`;
 
     appData.chatHistories[qId] = [{ role: "user", parts: [{ text: prompt }] }];
 
     try {
-        const apiKey = appData.apiKey;
-        if (!apiKey) throw new Error("API_KEY_MISSING");
-
-        const response = await fetchWithRetry(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: appData.chatHistories[qId],
-                    generationConfig: {
-                        responseMimeType: "application/json",
-                        responseSchema: {
-                            type: "OBJECT",
-                            required: ["result", "reason", "missing"],
-                            properties: {
-                                result:  { type: "STRING", description: "'正解', '一部正解', '要復習' のいずれか" },
-                                reason:  { type: "STRING", description: "採点理由とアドバイス" },
-                                missing: { type: "STRING", description: "不足キーワード（なければ空文字）" }
-                            }
-                        }
-                    }
-                })
-            }
-        );
-
-        const data = await response.json();
-        const replyText = data.candidates[0].content.parts[0].text;
+        const replyText = await callLLM(appData.chatHistories[qId], true);
         appData.chatHistories[qId].push({ role: "model", parts: [{ text: replyText }] });
+        saveData();
 
         const resultJSON = JSON.parse(replyText);
-        displayFeedback(index, resultJSON.result, resultJSON.reason, resultJSON.missing, q.md);
+        displayFeedback(index, resultJSON.score, resultJSON.reason, resultJSON.missing, q.md);
 
     } catch (error) {
         appData.chatHistories[qId] = [];
-        let res = "要復習";
+        let res = 1;
         let reason = "";
 
         if (error.message === "API_KEY_MISSING") {
@@ -650,7 +762,7 @@ async function sendChatMessage(index) {
     const inputVal = inputEl.value.trim();
 
     if (!inputVal) return;
-    if (!appData.apiKey) { showToast('チャットにはAPIキーが必要です', 'error'); return; }
+    if (!appData.apiKey && !appData.groqApiKey) { showToast('チャットにはAPIキーが必要です', 'error'); return; }
 
     inputEl.value = '';
     const chatLogEl = document.getElementById(`chat-log-${index}`);
@@ -675,22 +787,8 @@ async function sendChatMessage(index) {
     chatLogEl.scrollTop = chatLogEl.scrollHeight;
 
     try {
-        const response = await fetchWithRetry(
-            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${appData.apiKey}`,
-            {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    contents: appData.chatHistories[qId],
-                    systemInstruction: {
-                        parts: [{ text: "あなたは測量士試験の専門家です。ユーザーの質問・指摘に対して専門的かつ謙虚に答えてください。過去の採点や解説に誤りがあれば素直に認め正しい解説を提供してください。出力はプレーンテキスト（Markdown可）で行ってください。" }]
-                    }
-                })
-            }
-        );
-
-        const data = await response.json();
-        const replyText = data.candidates[0].content.parts[0].text;
+        const sysPrompt = "あなたは測量士試験の専門家です。ユーザーの質問・指摘に対して専門的かつ謙虚に答えてください。過去の採点や解説に誤りがあれば素直に認め正しい解説を提供してください。出力はプレーンテキスト（Markdown可）で行ってください。";
+        const replyText = await callLLM(appData.chatHistories[qId], false, sysPrompt);
 
         appData.chatHistories[qId].push({ role: "model", parts: [{ text: replyText }] });
         saveData();
@@ -735,6 +833,7 @@ async function sendChatMessage(index) {
         // --- 設定＆データ移行モーダル ---
         function showSettingsModal() {
             document.getElementById('api-key-input').value = appData.apiKey || "";
+            document.getElementById('groq-api-key-input').value = appData.groqApiKey || "";
             document.getElementById('gist-token-input').value = appData.gistToken || "";
             document.getElementById('gist-id-input').value = appData.gistId || "";
             const modal = document.getElementById('settings-modal');
@@ -752,6 +851,7 @@ async function sendChatMessage(index) {
 
         function saveSettings() {
             appData.apiKey = document.getElementById('api-key-input').value.trim();
+            appData.groqApiKey = document.getElementById('groq-api-key-input').value.trim();
             appData.gistToken = document.getElementById('gist-token-input').value.trim();
             appData.gistId = document.getElementById('gist-id-input').value.trim();
             saveData();
@@ -774,6 +874,7 @@ async function sendChatMessage(index) {
             // 【修正箇所】クラウドに送るデータから、APIキーとTokenを確実に削除する
             const safeUploadData = { ...appData };
             delete safeUploadData.apiKey;
+            delete safeUploadData.groqApiKey;
             delete safeUploadData.gistToken;
 
             try {
@@ -848,6 +949,7 @@ async function sendChatMessage(index) {
             // 【修正箇所】ダウンロードするファイルからもAPIキーとTokenを削除
             const safeExportData = { ...appData };
             delete safeExportData.apiKey;
+            delete safeExportData.groqApiKey;
             delete safeExportData.gistToken;
 
             const dataStr = JSON.stringify(safeExportData);
@@ -911,7 +1013,8 @@ async function sendChatMessage(index) {
         function executeReset() {
             // APIキーだけはリセットせずに残す
             const currentApiKey = appData.apiKey;
-            appData = { scores: {}, mastered: [], answers: {}, hideMastered: document.getElementById('hide-mastered-toggle').checked, chatHistories: {}, apiKey: currentApiKey };
+            const currentGroqKey = appData.groqApiKey;
+            appData = { scores: {}, mastered: [], answers: {}, hideMastered: document.getElementById('hide-mastered-toggle').checked, chatHistories: {}, apiKey: currentApiKey, groqApiKey: currentGroqKey };
             localStorage.removeItem(STORAGE_KEY);
             closeResetModal(); showToast('学習データをすべてリセットしました', 'success');
             currentIndex = 0; setFilter(currentFilter);
