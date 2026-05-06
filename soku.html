@@ -703,7 +703,13 @@ async function gradeAnswer(index) {
     const feedbackEl = document.getElementById(`feedback-${index}`);
     loadingEl.classList.remove('hidden'); feedbackEl.classList.add('hidden');
 
-    const prompt = `あなたは測量士試験の優秀な採点官です。以下の解答を採点しJSONで返してください。
+    const prompt = `あなたは測量士試験の優秀な採点官です。以下の解答を採点し、必ず以下のJSON形式で返してください。
+    {
+      "score": <1から5の整数>,
+      "reason": "<採点理由とアドバイス>",
+      "missing": "<不足キーワード（なければ空文字）>"
+    }
+
     【問題の種類】${q.tp}
     【問題】${q.q}
     【模範解答】${q.md}
