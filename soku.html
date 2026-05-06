@@ -569,13 +569,15 @@ async function gradeAnswer(index) {
     const feedbackEl = document.getElementById(`feedback-${index}`);
     loadingEl.classList.remove('hidden'); feedbackEl.classList.add('hidden');
 
-    const prompt = `あなたは測量士試験の厳密かつ穏やかな採点官です。以下の解答を採点しJSONで返してください。
+    const prompt = `あなたは測量士試験の優秀な採点官です。以下の解答を採点しJSONで返してください。
     【問題の種類】${q.tp}
     【問題】${q.q}
     【模範解答】${q.md}
     【受験者の解答】${userAnswer}
     
-    採点基準: 正解/一部正解/要復習。記号・穴埋めは厳密に。`;
+    採点基準: 判定は「正解」「一部正解」「要復習」のいずれか。
+    ・穴埋め問題の場合、解答に「ア：〇〇」のように記号が含まれていても、実質的な内容（〇〇の部分）が合っていれば「正解」としてください。
+    ・記述問題の場合、一言一句同じである必要はありません。重要なキーワードが含まれており、意味や文脈が模範解答と合致していれば、語順が違っても柔軟に「正解」としてください。`;
 
     appData.chatHistories[qId] = [{ role: "user", parts: [{ text: prompt }] }];
 
