@@ -1,0 +1,1 @@
+const QS_CALCULATION = [];

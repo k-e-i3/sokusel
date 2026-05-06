@@ -25,6 +25,7 @@
     <script src="js/data_pm_elective2.js"></script>
     <script src="js/data_pm_elective4.js"></script>
     <script src="js/data_pm_elective5.js"></script>
+    <script src="js/data_pm_calculation.js"></script>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen p-3 md:p-6 pb-24">
     <div class="max-w-4xl mx-auto">
@@ -186,7 +187,8 @@
             "午後必須": (typeof QS_MANDATORY !== 'undefined' ? QS_MANDATORY : []),
             "午後選択2": (typeof QS_ELECTIVE_2 !== 'undefined' ? QS_ELECTIVE_2 : []),
             "午後選択4": (typeof QS_ELECTIVE_4 !== 'undefined' ? QS_ELECTIVE_4 : []),
-            "午後選択5": (typeof QS_ELECTIVE_5 !== 'undefined' ? QS_ELECTIVE_5 : [])
+            "午後選択5": (typeof QS_ELECTIVE_5 !== 'undefined' ? QS_ELECTIVE_5 : []),
+            "計算問題": (typeof QS_CALCULATION !== 'undefined' ? QS_CALCULATION : [])
         };
 
         let currentCategory = "午後必須";
