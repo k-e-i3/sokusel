@@ -793,14 +793,20 @@ async function sendChatMessage(index) {
     chatLogEl.scrollTop = chatLogEl.scrollHeight;
 
     try {
-        const sysPrompt = "あなたは測量士試験の専門家です。ユーザーの質問・指摘に対して専門的かつ謙虚に答えてください。過去の採点や解説に誤りがあれば素直に認め正しい解説を提供してください。出力はプレーンテキスト（Markdown可）で行ってください。";
+        const sysPrompt = "あなたは測量士試験の専門家です。ユーザーの質問・指摘に対して専門的かつ謙虚に答えてください。過去の採点や解説に誤りがあれば素直に認め正しい解説を提供してください。※重要: これ以降はJSON形式ではなく、必ず通常の自然言語（Markdown可）で返答してください。";
         const replyText = await callLLM(appData.chatHistories[qId], false, sysPrompt);
 
         appData.chatHistories[qId].push({ role: "model", parts: [{ text: replyText }] });
         saveData();
 
         document.getElementById(loadingId)?.remove();
-        const formattedReply = marked.parse ? marked.parse(replyText) : replyText.replace(/\n/g, '<br>');
+        
+        let parsedModelTxt = replyText;
+        try {
+            const parsed = JSON.parse(parsedModelTxt);
+            if(parsed.reason) parsedModelTxt = parsed.reason; 
+        } catch(e){}
+        const formattedReply = marked.parse ? marked.parse(parsedModelTxt) : parsedModelTxt.replace(/\n/g, '<br>');
         chatLogEl.innerHTML += `
             <div class="flex">
                 <div class="bg-white border border-slate-200 text-slate-800 px-4 py-3 rounded-xl rounded-tl-sm max-w-[95%] text-xs leading-relaxed shadow-sm markdown-body">
