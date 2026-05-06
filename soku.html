@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ja" class="text-[14px]">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,16 +10,57 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&display=swap');
-        body { font-family: 'Noto Sans JP', sans-serif; }
-        .progress-transition { transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); }
-        .animate-fade-in { animation: fadeIn 0.3s ease-out forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        .toggle-checkbox:checked { right: 0; border-color: #10b981; }
-        .toggle-checkbox:checked + .toggle-label { background-color: #10b981; }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+        }
+
+        .progress-transition {
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .toggle-checkbox:checked {
+            right: 0;
+            border-color: #10b981;
+        }
+
+        .toggle-checkbox:checked+.toggle-label {
+            background-color: #10b981;
+        }
     </style>
     <!-- 外部化された問題データ群 -->
     <script src="js/data_pm_mandatory.js"></script>
@@ -27,9 +69,11 @@
     <script src="js/data_pm_elective5.js"></script>
     <script src="js/data_pm_calculation.js"></script>
 </head>
+
 <body class="bg-slate-50 text-slate-800 min-h-screen p-3 md:p-6 pb-24">
     <div class="max-w-4xl mx-auto">
-        <header class="mb-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+        <header
+            class="mb-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white p-5 rounded-xl shadow-sm border border-slate-200">
             <div>
                 <h1 class="text-lg md:text-xl font-black text-slate-900 flex items-center gap-2">
                     <i data-lucide="book-open-check" class="text-emerald-600 w-6 h-6"></i>
@@ -38,10 +82,12 @@
                 <p class="text-slate-500 mt-1 text-xs md:text-sm font-medium">厳選過去問100題・正解で自動非表示・AIチャット機能</p>
             </div>
             <div class="flex gap-2">
-                <button onclick="showSettingsModal()" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm">
+                <button onclick="showSettingsModal()"
+                    class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-bold transition-colors shadow-sm">
                     <i data-lucide="settings" class="w-3.5 h-3.5"></i> 設定＆データ引継ぎ
                 </button>
-                <button onclick="showResetModal()" class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 rounded-lg text-xs font-bold transition-colors border border-slate-200 hover:border-rose-200">
+                <button onclick="showResetModal()"
+                    class="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 rounded-lg text-xs font-bold transition-colors border border-slate-200 hover:border-rose-200">
                     <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> リセット
                 </button>
             </div>
@@ -55,14 +101,18 @@
 
             <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-3 gap-3">
                 <div class="flex flex-wrap gap-1.5" id="filter-container">
-                    </div>
-                
+                </div>
+
                 <div class="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200">
                     <i data-lucide="eye-off" class="w-3.5 h-3.5 text-slate-500"></i>
                     <span class="text-xs font-bold text-slate-700">完璧な問題（正解済み）を隠す</span>
-                    <div class="relative inline-block w-8 mr-1 align-middle select-none transition duration-200 ease-in">
-                        <input type="checkbox" id="hide-mastered-toggle" class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 transition-transform duration-300 ease-in-out" onchange="toggleHideMode(this.checked)"/>
-                        <label for="hide-mastered-toggle" class="toggle-label block overflow-hidden h-4 rounded-full bg-slate-300 cursor-pointer transition-colors duration-300"></label>
+                    <div
+                        class="relative inline-block w-8 mr-1 align-middle select-none transition duration-200 ease-in">
+                        <input type="checkbox" id="hide-mastered-toggle"
+                            class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white border-4 appearance-none cursor-pointer z-10 transition-transform duration-300 ease-in-out"
+                            onchange="toggleHideMode(this.checked)" />
+                        <label for="hide-mastered-toggle"
+                            class="toggle-label block overflow-hidden h-4 rounded-full bg-slate-300 cursor-pointer transition-colors duration-300"></label>
                     </div>
                 </div>
             </div>
@@ -72,8 +122,10 @@
 
         <div id="question-container" class="min-h-[300px]"></div>
 
-        <div class="flex justify-between items-center mt-5 bg-white p-3 rounded-xl shadow-sm border border-slate-200" id="nav-container">
-            <button onclick="navigate(-1)" class="flex items-center gap-1.5 px-4 py-2 text-slate-600 hover:bg-slate-100 font-bold rounded-lg transition-colors text-sm">
+        <div class="flex justify-between items-center mt-5 bg-white p-3 rounded-xl shadow-sm border border-slate-200"
+            id="nav-container">
+            <button onclick="navigate(-1)"
+                class="flex items-center gap-1.5 px-4 py-2 text-slate-600 hover:bg-slate-100 font-bold rounded-lg transition-colors text-sm">
                 <i data-lucide="chevron-left" class="w-4 h-4"></i> 前へ
             </button>
             <div class="flex flex-col items-center">
@@ -81,34 +133,44 @@
                 <span class="text-slate-700 font-black text-base" id="question-counter">- / -</span>
             </div>
             <div class="flex gap-2">
-                <button onclick="navigateRandom()" class="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition-colors shadow-sm text-sm">
+                <button onclick="navigateRandom()"
+                    class="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition-colors shadow-sm text-sm">
                     ランダム <i data-lucide="shuffle" class="w-4 h-4"></i>
                 </button>
-                <button onclick="navigate(1)" class="flex items-center gap-1.5 px-4 py-2 bg-slate-800 text-white hover:bg-slate-700 font-bold rounded-lg transition-colors shadow-sm text-sm">
+                <button onclick="navigate(1)"
+                    class="flex items-center gap-1.5 px-4 py-2 bg-slate-800 text-white hover:bg-slate-700 font-bold rounded-lg transition-colors shadow-sm text-sm">
                     次へ <i data-lucide="chevron-right" class="w-4 h-4"></i>
                 </button>
             </div>
         </div>
     </div>
 
-    <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 translate-y-24 opacity-0 transition-all duration-300 z-50 flex items-center gap-2 px-5 py-2.5 rounded-xl shadow-lg font-bold text-white text-sm min-w-[250px] justify-center">
+    <div id="toast"
+        class="fixed bottom-5 left-1/2 -translate-x-1/2 translate-y-24 opacity-0 transition-all duration-300 z-50 flex items-center gap-2 px-5 py-2.5 rounded-xl shadow-lg font-bold text-white text-sm min-w-[250px] justify-center">
         <i id="toast-icon" data-lucide="info" class="w-4 h-4"></i>
         <span id="toast-message">メッセージ</span>
     </div>
 
-    <div id="settings-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-2xl p-5 md:p-6 max-w-md w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 max-h-[90vh] overflow-y-auto" id="settings-modal-content">
+    <div id="settings-modal"
+        class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl p-5 md:p-6 max-w-md w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 max-h-[90vh] overflow-y-auto"
+            id="settings-modal-content">
             <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3">
                 <h3 class="text-lg font-black text-slate-800 flex items-center gap-2">
                     <i data-lucide="settings" class="w-5 h-5 text-slate-500"></i> 設定＆データ引継ぎ
                 </h3>
-                <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+                <button onclick="closeSettingsModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x"
+                        class="w-5 h-5"></i></button>
             </div>
-            
+
             <div class="mb-6">
                 <label class="block text-sm font-bold text-slate-700 mb-2">1. AI採点用 APIキー</label>
-                <input type="password" id="groq-api-key-input" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 mb-2" placeholder="Groq APIキー (推奨 / 高速)">
-                <input type="password" id="api-key-input" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 mb-1" placeholder="Gemini APIキー (予備 / 制限対策)">
+                <input type="password" id="groq-api-key-input"
+                    class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 mb-2"
+                    placeholder="Groq APIキー (推奨 / 高速)">
+                <input type="password" id="api-key-input"
+                    class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 mb-1"
+                    placeholder="Gemini APIキー (予備 / 制限対策)">
                 <p class="text-[10px] text-slate-500">※Groqを優先して使用します。Groqキーが空、またはエラーになった場合はGeminiを自動的に使用します。</p>
             </div>
 
@@ -118,17 +180,25 @@
                 </label>
                 <p class="text-[11px] text-slate-500 mb-3 leading-relaxed">
                     Google Driveは数日で認証が切れてしまうため、お使いの<b>GitHub (Gist)</b>を利用した無期限の同期機能をご用意しました。<br>
-                    <a href="https://github.com/settings/tokens/new" target="_blank" class="text-blue-600 hover:underline">Token設定画面</a> で <b>gist</b> 権限のみにチェックを入れ、期限を無期限(No expiration)にしてTokenを発行し、下に貼り付けてください。
+                    <a href="https://github.com/settings/tokens/new" target="_blank"
+                        class="text-blue-600 hover:underline">Token設定画面</a> で <b>gist</b> 権限のみにチェックを入れ、期限を無期限(No
+                    expiration)にしてTokenを発行し、下に貼り付けてください。
                 </p>
-                
-                <input type="password" id="gist-token-input" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 mb-2" placeholder="GitHub Token (ghp_xxxx...)">
-                <input type="text" id="gist-id-input" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 mb-3 text-slate-500" placeholder="Gist ID (初回は空欄でOK)">
-                
+
+                <input type="password" id="gist-token-input"
+                    class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 mb-2"
+                    placeholder="GitHub Token (ghp_xxxx...)">
+                <input type="text" id="gist-id-input"
+                    class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 mb-3 text-slate-500"
+                    placeholder="Gist ID (初回は空欄でOK)">
+
                 <div class="grid grid-cols-2 gap-3">
-                    <button onclick="syncToCloud()" id="btn-sync-up" class="flex items-center justify-center gap-1.5 p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors text-xs font-bold shadow-sm">
+                    <button onclick="syncToCloud()" id="btn-sync-up"
+                        class="flex items-center justify-center gap-1.5 p-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg transition-colors text-xs font-bold shadow-sm">
                         <i data-lucide="cloud-upload" class="w-3.5 h-3.5"></i> クラウドへ保存
                     </button>
-                    <button onclick="syncFromCloud()" id="btn-sync-down" class="flex items-center justify-center gap-1.5 p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-xs font-bold shadow-sm">
+                    <button onclick="syncFromCloud()" id="btn-sync-down"
+                        class="flex items-center justify-center gap-1.5 p-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-xs font-bold shadow-sm">
                         <i data-lucide="cloud-download" class="w-3.5 h-3.5"></i> クラウドから復元
                     </button>
                 </div>
@@ -137,15 +207,17 @@
             <div class="mb-6 border-t border-slate-100 pt-4">
                 <label class="block text-sm font-bold text-slate-700 mb-2">3. 手動ファイル引継ぎ</label>
                 <div class="grid grid-cols-2 gap-3">
-                    <button onclick="exportData()" class="flex flex-col items-center justify-center gap-2 p-3 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl transition-colors">
+                    <button onclick="exportData()"
+                        class="flex flex-col items-center justify-center gap-2 p-3 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-xl transition-colors">
                         <i data-lucide="download" class="w-6 h-6"></i>
                         <div class="text-center">
                             <span class="block text-sm font-bold">データ書き出し</span>
                             <span class="block text-[10px] opacity-80 mt-0.5">PC等で保存</span>
                         </div>
                     </button>
-                    
-                    <label class="flex flex-col items-center justify-center gap-2 p-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl transition-colors cursor-pointer">
+
+                    <label
+                        class="flex flex-col items-center justify-center gap-2 p-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-xl transition-colors cursor-pointer">
                         <i data-lucide="upload" class="w-6 h-6"></i>
                         <div class="text-center">
                             <span class="block text-sm font-bold">データ読み込み</span>
@@ -157,21 +229,27 @@
             </div>
 
             <div class="flex justify-end pt-2">
-                <button onclick="saveSettings()" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-bold transition-colors shadow-sm">設定を保存して閉じる</button>
+                <button onclick="saveSettings()"
+                    class="px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-bold transition-colors shadow-sm">設定を保存して閉じる</button>
             </div>
         </div>
     </div>
 
-    <div id="reset-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center opacity-0 transition-opacity duration-300">
-        <div class="bg-white rounded-2xl p-5 md:p-6 max-w-sm w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="reset-modal-content">
+    <div id="reset-modal"
+        class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl p-5 md:p-6 max-w-sm w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300"
+            id="reset-modal-content">
             <div class="w-10 h-10 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mb-3">
                 <i data-lucide="alert-triangle" class="w-5 h-5"></i>
             </div>
             <h3 class="text-lg font-black mb-1.5 text-slate-800">学習データをリセット</h3>
-            <p class="text-slate-500 mb-6 text-xs font-medium leading-relaxed">これまでの「採点結果」「チャット履歴」「完璧状態」がすべて消去されます。この操作は元に戻せません。</p>
+            <p class="text-slate-500 mb-6 text-xs font-medium leading-relaxed">
+                これまでの「採点結果」「チャット履歴」「完璧状態」がすべて消去されます。この操作は元に戻せません。</p>
             <div class="flex gap-2 justify-end">
-                <button onclick="closeResetModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-bold transition-colors">キャンセル</button>
-                <button onclick="executeReset()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-bold transition-colors shadow-sm">すべて消去する</button>
+                <button onclick="closeResetModal()"
+                    class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-bold transition-colors">キャンセル</button>
+                <button onclick="executeReset()"
+                    class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-sm font-bold transition-colors shadow-sm">すべて消去する</button>
             </div>
         </div>
     </div>
@@ -203,7 +281,7 @@
             document.getElementById('hide-mastered-toggle').checked = appData.hideMastered;
             document.getElementById('api-key-input').value = appData.apiKey || "";
             document.getElementById('groq-api-key-input').value = appData.groqApiKey || "";
-            setCategory("午後必須"); 
+            setCategory("午後必須");
         });
 
         function loadData() {
@@ -219,7 +297,7 @@
                 try {
                     const parsed = JSON.parse(saved);
                     appData.scores = parsed.scores || {};
-                    
+
                     // 移行処理: ok -> 5, pt -> 3, ng -> 1
                     for (let qid in appData.scores) {
                         if (appData.scores[qid] === 'ok') appData.scores[qid] = 5;
@@ -235,10 +313,10 @@
                     appData.groqApiKey = parsed.groqApiKey || "";
                     appData.gistToken = parsed.gistToken || "";
                     appData.gistId = parsed.gistId || "";
-                } catch(e) { console.error('Failed to parse local storage'); }
+                } catch (e) { console.error('Failed to parse local storage'); }
             }
         }
-        
+
         function saveData() {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
         }
@@ -246,14 +324,14 @@
         // --- タブとフィルター ---
         function renderCategoryTabs() {
             const container = document.getElementById('category-tabs');
-            if(!container) return;
+            if (!container) return;
             const categories = Object.keys(DATASETS);
             container.innerHTML = categories.map(cat => `
                 <button onclick="setCategory('${cat}')" 
                     class="px-4 py-2 rounded-lg text-sm font-bold transition-all whitespace-nowrap border shadow-sm
-                    ${cat === currentCategory 
-                        ? 'bg-slate-800 text-white border-slate-800' 
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}">
+                    ${cat === currentCategory
+                    ? 'bg-slate-800 text-white border-slate-800'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}">
                     ${cat} <span class="text-[10px] opacity-70 ml-1">(${DATASETS[cat].length}問)</span>
                 </button>
             `).join('');
@@ -264,7 +342,7 @@
             QS = DATASETS[cat] || [];
             currentIndex = 0;
             renderCategoryTabs();
-            setFilter("すべて"); 
+            setFilter("すべて");
         }
 
         function renderFilters() {
@@ -272,9 +350,9 @@
             container.innerHTML = types.map(t => `
                 <button onclick="setFilter('${t}')" 
                     class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all border shadow-sm
-                    ${t === currentFilter 
-                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-md' 
-                        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}">
+                    ${t === currentFilter
+                    ? 'bg-emerald-600 text-white border-emerald-600 shadow-md'
+                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'}">
                     ${t}
                 </button>
             `).join('');
@@ -303,7 +381,7 @@
         function setFilter(type) {
             currentFilter = type;
             rebuildFilteredIndices();
-            currentIndex = 0; 
+            currentIndex = 0;
             renderFilters();
             updateView();
         }
@@ -341,7 +419,7 @@
 
             if (filteredIndices.length === 0) {
                 let msg = currentFilter === "すべて" ? "🎉 100問すべて完璧にマスターしました！素晴らしいです！" : `このカテゴリーの問題はすべて完璧です！`;
-                if(!appData.hideMastered && QS.length > 0) msg = "条件に一致する問題がありません。";
+                if (!appData.hideMastered && QS.length > 0) msg = "条件に一致する問題がありません。";
                 container.innerHTML = `
                     <div class="bg-white rounded-xl border-2 border-dashed border-emerald-200 p-10 text-center animate-fade-in shadow-sm">
                         <div class="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -354,11 +432,11 @@
                 lucide.createIcons();
                 return;
             }
-            
+
             navContainer.style.display = 'flex';
             const globalIndex = filteredIndices[currentIndex];
             const q = QS[globalIndex];
-            
+
             document.getElementById('question-counter').textContent = `${currentIndex + 1} / ${filteredIndices.length}`;
 
             const scoreStatus = appData.scores[q.id];
@@ -368,8 +446,8 @@
             else if (scoreStatus >= 1) statusBadge = '<span class="flex items-center gap-1 px-2 py-0.5 bg-rose-100 text-rose-800 rounded text-xs font-bold border border-rose-200"><i data-lucide="x-circle" class="w-3 h-3"></i>' + scoreStatus + ' / 5点</span>';
 
             const isMastered = appData.mastered.includes(q.id);
-            const masterBtnClass = isMastered 
-                ? "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200" 
+            const masterBtnClass = isMastered
+                ? "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200"
                 : "bg-white text-slate-500 border-slate-200 hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50";
             const masterBtnText = isMastered ? "完璧を解除" : "🌟 完璧！";
             const masterIcon = isMastered ? "star-off" : "star";
@@ -443,7 +521,7 @@
                 </div>
             `;
             lucide.createIcons();
-            
+
             // チャット履歴の復元
             const chatLogEl = document.getElementById(`chat-log-${globalIndex}`);
             if (chatLogEl && appData.chatHistories[q.id]) {
@@ -459,8 +537,8 @@
                         let parsedModelTxt = msg.parts[0].text;
                         try {
                             const parsed = JSON.parse(parsedModelTxt);
-                            if(parsed.reason) parsedModelTxt = parsed.reason; 
-                        } catch(e){}
+                            if (parsed.reason) parsedModelTxt = parsed.reason;
+                        } catch (e) { }
                         const formattedReply = marked.parse(parsedModelTxt);
                         chatLogEl.innerHTML += `<div class="flex"><div class="bg-white border border-slate-200 text-slate-800 px-4 py-3 rounded-xl rounded-tl-sm max-w-[95%] text-xs leading-relaxed shadow-sm markdown-body"><div class="font-black text-[10px] text-emerald-600 mb-1">AIアシスタント</div>${formattedReply}</div></div>`;
                     }
@@ -470,7 +548,7 @@
         }
 
         function clearChat(index) {
-            if(!confirm("この問題のチャット履歴を削除しますか？\\n※採点結果はそのまま残ります。")) return;
+            if (!confirm("この問題のチャット履歴を削除しますか？\\n※採点結果はそのまま残ります。")) return;
             const qId = QS[index].id;
             appData.chatHistories[qId] = [];
             saveData();
@@ -483,7 +561,7 @@
         function toggleMaster(globalIndex) {
             const qId = QS[globalIndex].id;
             const isMastered = appData.mastered.includes(qId);
-            
+
             if (isMastered) {
                 appData.mastered = appData.mastered.filter(id => id !== qId);
                 showToast('「完璧」を解除しました', 'info');
@@ -493,7 +571,7 @@
                 else showToast('🌟 完璧リストに追加しました！', 'success');
             }
             saveData();
-            
+
             const btn = document.getElementById(`master-btn-${globalIndex}`);
             const border = document.getElementById(`card-border-${globalIndex}`);
             if (btn && border) {
@@ -529,30 +607,30 @@
                 </div>
             `;
             lucide.createIcons();
-            if(!appData.scores[q.id]) { appData.scores[q.id] = 1; saveData(); updateBadgeDOM(index, 1); }
+            if (!appData.scores[q.id]) { appData.scores[q.id] = 1; saveData(); updateBadgeDOM(index, 1); }
         }
 
-function displayFeedback(index, score, reason, missing, modelAnswer) {
-    const fbEl = document.getElementById(`feedback-${index}`);
-    if (!fbEl) return;
-    
-    fbEl.className = 'mt-6 p-5 md:p-6 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 block animate-fade-in shadow-sm';
-    
-    let badgeHtml = '';
-    const scoreVal = parseInt(score) || 1;
-    let stars = '⭐'.repeat(scoreVal);
-    
-    if (scoreVal >= 5) {
-        badgeHtml = '<span class="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-800 rounded text-xs font-bold border border-emerald-200"><i data-lucide="check-circle-2" class="w-4 h-4"></i> ' + stars + ' 5 / 5点</span>';
-    } else if (scoreVal >= 3) {
-        badgeHtml = '<span class="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-800 rounded text-xs font-bold border border-amber-200"><i data-lucide="alert-circle" class="w-4 h-4"></i> ' + stars + ' ' + scoreVal + ' / 5点</span>';
-    } else {
-        badgeHtml = '<span class="inline-flex items-center gap-1 px-2 py-1 bg-rose-100 text-rose-800 rounded text-xs font-bold border border-rose-200"><i data-lucide="x-circle" class="w-4 h-4"></i> ' + stars + ' ' + scoreVal + ' / 5点</span>';
-    }
+        function displayFeedback(index, score, reason, missing, modelAnswer) {
+            const fbEl = document.getElementById(`feedback-${index}`);
+            if (!fbEl) return;
 
-    let missingHtml = missing ? `<div class="mt-3 text-xs font-bold text-rose-600 bg-rose-50 p-2.5 rounded border border-rose-100"><i data-lucide="alert-triangle" class="w-3.5 h-3.5 inline mb-0.5"></i> 不足キーワード: ${missing}</div>` : '';
+            fbEl.className = 'mt-6 p-5 md:p-6 rounded-xl border border-slate-200 bg-slate-50 text-slate-800 block animate-fade-in shadow-sm';
 
-    fbEl.innerHTML = `
+            let badgeHtml = '';
+            const scoreVal = parseInt(score) || 1;
+            let stars = '⭐'.repeat(scoreVal);
+
+            if (scoreVal >= 5) {
+                badgeHtml = '<span class="inline-flex items-center gap-1 px-2 py-1 bg-emerald-100 text-emerald-800 rounded text-xs font-bold border border-emerald-200"><i data-lucide="check-circle-2" class="w-4 h-4"></i> ' + stars + ' 5 / 5点</span>';
+            } else if (scoreVal >= 3) {
+                badgeHtml = '<span class="inline-flex items-center gap-1 px-2 py-1 bg-amber-100 text-amber-800 rounded text-xs font-bold border border-amber-200"><i data-lucide="alert-circle" class="w-4 h-4"></i> ' + stars + ' ' + scoreVal + ' / 5点</span>';
+            } else {
+                badgeHtml = '<span class="inline-flex items-center gap-1 px-2 py-1 bg-rose-100 text-rose-800 rounded text-xs font-bold border border-rose-200"><i data-lucide="x-circle" class="w-4 h-4"></i> ' + stars + ' ' + scoreVal + ' / 5点</span>';
+            }
+
+            let missingHtml = missing ? `<div class="mt-3 text-xs font-bold text-rose-600 bg-rose-50 p-2.5 rounded border border-rose-100"><i data-lucide="alert-triangle" class="w-3.5 h-3.5 inline mb-0.5"></i> 不足キーワード: ${missing}</div>` : '';
+
+            fbEl.innerHTML = `
         <div class="mb-4">
             <div class="flex items-center gap-2 mb-3">${badgeHtml}</div>
             <p class="whitespace-pre-wrap text-sm md:text-sm font-medium leading-relaxed">${reason}</p>
@@ -566,15 +644,20 @@ function displayFeedback(index, score, reason, missing, modelAnswer) {
             </div>
         </div>
     `;
-    
-    lucide.createIcons();
-    
-    // スコアを保存して上部のバッジを更新
-    const qId = QS[index].id;
-    appData.scores[qId] = scoreVal;
-    saveData();
-    updateBadgeDOM(index, scoreVal);
-}
+
+            lucide.createIcons();
+
+            // スコアを保存して上部のバッジを更新
+            const qId = QS[index].id;
+            appData.scores[qId] = scoreVal;
+            saveData();
+            updateBadgeDOM(index, scoreVal);
+
+            // 5点満点の場合、自動で「完璧」にする
+            if (scoreVal >= 5 && !appData.mastered.includes(qId)) {
+                toggleMaster(index); // This automatically saves and shows a toast
+            }
+        }
 
         function updateBadgeDOM(index, scoreVal) {
             const badgeContainer = document.getElementById(`status-badge-container-${index}`);
@@ -585,125 +668,125 @@ function displayFeedback(index, score, reason, missing, modelAnswer) {
             lucide.createIcons();
         }
 
-const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
+        const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 
-async function fetchWithRetry(url, options, maxRetries = 5) {
-    const delays = [1000, 2000, 4000, 8000, 16000];
-    for (let i = 0; i < maxRetries; i++) {
-        try {
-            const response = await fetch(url, options);
-            if (response.ok) return response;
-            // 4xx はリトライ不要、即終了
-            if (response.status >= 400 && response.status < 500) {
-                const errBody = await response.json().catch(() => ({}));
-                throw new Error(`CLIENT_ERROR_${response.status}: ${JSON.stringify(errBody)}`);
-            }
-        } catch (error) {
-            if (i === maxRetries - 1) throw error;
-            if (error.message && error.message.startsWith('CLIENT_ERROR')) throw error;
-        }
-        await delay(delays[i]);
-    }
-    throw new Error('All retries failed');
-}
-
-async function callLLM(history, isJsonMode = false, systemInstructionText = null) {
-    let errorLog = [];
-    
-    // 1. Groq (Llama-3.3-70b-versatile)
-    if (appData.groqApiKey) {
-        try {
-            let groqMessages = [];
-            if (systemInstructionText) {
-                groqMessages.push({ role: 'system', content: systemInstructionText });
-            }
-            
-            groqMessages = groqMessages.concat(history.map(m => {
-                let text = m.parts[0].text;
-                return {
-                    role: m.role === 'model' ? 'assistant' : m.role,
-                    content: text
-                };
-            }));
-            
-            const reqBody = {
-                model: "llama-3.3-70b-versatile",
-                messages: groqMessages,
-                temperature: 0.7
-            };
-            if (isJsonMode) reqBody.response_format = { type: "json_object" };
-
-            const response = await fetchWithRetry("https://api.groq.com/openai/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${appData.groqApiKey}`
-                },
-                body: JSON.stringify(reqBody)
-            });
-            const data = await response.json();
-            if(data.error) throw new Error(data.error.message || "Groq Error");
-            return data.choices[0].message.content;
-        } catch (e) {
-            console.warn("Groq failed, falling back to Gemini", e);
-            errorLog.push("Groqエラー: " + e.message);
-        }
-    }
-
-    // 2. Gemini Fallback
-    if (appData.apiKey) {
-        try {
-            const reqBody = { contents: history, generationConfig: {} };
-            
-            if (systemInstructionText) {
-                reqBody.systemInstruction = { parts: [{ text: systemInstructionText }] };
-            }
-            
-            if (isJsonMode) {
-                reqBody.generationConfig.responseMimeType = "application/json";
-                reqBody.generationConfig.responseSchema = {
-                    type: "OBJECT",
-                    required: ["score", "reason", "missing"],
-                    properties: {
-                        score:   { type: "INTEGER", description: "1から5までの点数" },
-                        reason:  { type: "STRING", description: "採点理由とアドバイス" },
-                        missing: { type: "STRING", description: "不足キーワード（なければ空文字）" }
+        async function fetchWithRetry(url, options, maxRetries = 5) {
+            const delays = [1000, 2000, 4000, 8000, 16000];
+            for (let i = 0; i < maxRetries; i++) {
+                try {
+                    const response = await fetch(url, options);
+                    if (response.ok) return response;
+                    // 4xx はリトライ不要、即終了
+                    if (response.status >= 400 && response.status < 500) {
+                        const errBody = await response.json().catch(() => ({}));
+                        throw new Error(`CLIENT_ERROR_${response.status}: ${JSON.stringify(errBody)}`);
                     }
-                };
+                } catch (error) {
+                    if (i === maxRetries - 1) throw error;
+                    if (error.message && error.message.startsWith('CLIENT_ERROR')) throw error;
+                }
+                await delay(delays[i]);
+            }
+            throw new Error('All retries failed');
+        }
+
+        async function callLLM(history, isJsonMode = false, systemInstructionText = null) {
+            let errorLog = [];
+
+            // 1. Groq (Llama-3.3-70b-versatile)
+            if (appData.groqApiKey) {
+                try {
+                    let groqMessages = [];
+                    if (systemInstructionText) {
+                        groqMessages.push({ role: 'system', content: systemInstructionText });
+                    }
+
+                    groqMessages = groqMessages.concat(history.map(m => {
+                        let text = m.parts[0].text;
+                        return {
+                            role: m.role === 'model' ? 'assistant' : m.role,
+                            content: text
+                        };
+                    }));
+
+                    const reqBody = {
+                        model: "llama-3.3-70b-versatile",
+                        messages: groqMessages,
+                        temperature: 0.7
+                    };
+                    if (isJsonMode) reqBody.response_format = { type: "json_object" };
+
+                    const response = await fetchWithRetry("https://api.groq.com/openai/v1/chat/completions", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Authorization": `Bearer ${appData.groqApiKey}`
+                        },
+                        body: JSON.stringify(reqBody)
+                    });
+                    const data = await response.json();
+                    if (data.error) throw new Error(data.error.message || "Groq Error");
+                    return data.choices[0].message.content;
+                } catch (e) {
+                    console.warn("Groq failed, falling back to Gemini", e);
+                    errorLog.push("Groqエラー: " + e.message);
+                }
             }
 
-            const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${appData.apiKey}`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(reqBody)
-            });
-            const data = await response.json();
-            if(data.error) throw new Error(data.error.message || "Gemini Error");
-            return data.candidates[0].content.parts[0].text;
-        } catch(e) {
-            console.warn("Gemini failed", e);
-            errorLog.push("Geminiエラー: " + e.message);
+            // 2. Gemini Fallback
+            if (appData.apiKey) {
+                try {
+                    const reqBody = { contents: history, generationConfig: {} };
+
+                    if (systemInstructionText) {
+                        reqBody.systemInstruction = { parts: [{ text: systemInstructionText }] };
+                    }
+
+                    if (isJsonMode) {
+                        reqBody.generationConfig.responseMimeType = "application/json";
+                        reqBody.generationConfig.responseSchema = {
+                            type: "OBJECT",
+                            required: ["score", "reason", "missing"],
+                            properties: {
+                                score: { type: "INTEGER", description: "1から5までの点数" },
+                                reason: { type: "STRING", description: "採点理由とアドバイス" },
+                                missing: { type: "STRING", description: "不足キーワード（なければ空文字）" }
+                            }
+                        };
+                    }
+
+                    const response = await fetchWithRetry(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${appData.apiKey}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(reqBody)
+                    });
+                    const data = await response.json();
+                    if (data.error) throw new Error(data.error.message || "Gemini Error");
+                    return data.candidates[0].content.parts[0].text;
+                } catch (e) {
+                    console.warn("Gemini failed", e);
+                    errorLog.push("Geminiエラー: " + e.message);
+                }
+            }
+
+            if (errorLog.length > 0) {
+                throw new Error("CLIENT_ERROR: " + errorLog.join(" / "));
+            } else {
+                throw new Error("API_KEY_MISSING");
+            }
         }
-    }
 
-    if (errorLog.length > 0) {
-        throw new Error("CLIENT_ERROR: " + errorLog.join(" / "));
-    } else {
-        throw new Error("API_KEY_MISSING");
-    }
-}
+        async function gradeAnswer(index) {
+            const q = QS[index];
+            const qId = q.id;
+            const userAnswer = document.getElementById(`answer-${index}`).value.trim();
+            if (!userAnswer) { showToast('解答が入力されていません！', 'error'); return; }
 
-async function gradeAnswer(index) {
-    const q = QS[index];
-    const qId = q.id;
-    const userAnswer = document.getElementById(`answer-${index}`).value.trim();
-    if (!userAnswer) { showToast('解答が入力されていません！', 'error'); return; }
+            const loadingEl = document.getElementById(`loading-${index}`);
+            const feedbackEl = document.getElementById(`feedback-${index}`);
+            loadingEl.classList.remove('hidden'); feedbackEl.classList.add('hidden');
 
-    const loadingEl = document.getElementById(`loading-${index}`);
-    const feedbackEl = document.getElementById(`feedback-${index}`);
-    loadingEl.classList.remove('hidden'); feedbackEl.classList.add('hidden');
-
-    const prompt = `あなたは測量士試験の優秀な採点官です。以下の解答を採点し、必ず以下のJSON形式で返してください。
+            const prompt = `あなたは測量士試験の優秀な採点官です。以下の解答を採点し、必ず以下のJSON形式で返してください。
     {
       "score": <1から5の整数>,
       "reason": "<採点理由とアドバイス>",
@@ -725,112 +808,146 @@ async function gradeAnswer(index) {
     ・記述問題の場合、一言一句同じである必要は【絶対に】ありません。重要なキーワードが含まれており、意味が合致していれば、表現が異なっても柔軟に「5点」としてください。
     ・特に重要：受験者の解答に、模範解答には無い「正しい付加情報（例：～の検定を受け、等）」が含まれていたり、より詳細に記述されている場合は、絶対に減点せず「5点」としてください。明らかに間違ったことを言っていない限り、極めて寛容に採点してください。`;
 
-    appData.chatHistories[qId] = [{ role: "user", parts: [{ text: prompt }] }];
+            appData.chatHistories[qId] = [{ role: "user", parts: [{ text: prompt }] }];
 
-    try {
-        const replyText = await callLLM(appData.chatHistories[qId], true);
-        appData.chatHistories[qId].push({ role: "model", parts: [{ text: replyText }] });
-        saveData();
+            try {
+                const replyText = await callLLM(appData.chatHistories[qId], true);
+                appData.chatHistories[qId].push({ role: "model", parts: [{ text: replyText }] });
+                saveData();
 
-        const resultJSON = JSON.parse(replyText);
-        displayFeedback(index, resultJSON.score, resultJSON.reason, resultJSON.missing, q.md);
+                let cleanText = replyText.replace(/```json\\n?/gi, '').replace(/```/g, '').trim();
+                const resultJSON = JSON.parse(cleanText);
+                displayFeedback(index, resultJSON.score, resultJSON.reason, resultJSON.missing, q.md);
 
-    } catch (error) {
-        appData.chatHistories[qId] = [];
-        let res = 1;
-        let reason = "";
+            } catch (error) {
+                appData.chatHistories[qId] = [];
+                let res = 1;
+                let reason = "";
 
-        if (error.message === "API_KEY_MISSING") {
-            reason = "APIキーが未設定のため簡易判定しました。";
-            showToast('AI採点にはAPIキーが必要です', 'info');
-        } else if (error.message && error.message.startsWith('CLIENT_ERROR')) {
-            reason = `APIエラーが発生しました。問題文の内容がフィルターに抵触した可能性があります。（${error.message.split(':')[0]}）`;
-            showToast('APIエラー（400）。この問題はAI採点できません', 'error');
-        } else {
-            reason = "通信エラーのため簡易判定しました。";
+                if (error.message === "API_KEY_MISSING") {
+                    reason = "APIキーが未設定のため簡易判定しました。";
+                    showToast('AI採点にはAPIキーが必要です', 'info');
+                } else if (error.message && error.message.startsWith('CLIENT_ERROR')) {
+                    reason = `APIエラーが発生しました。問題文の内容がフィルターに抵触した可能性があります。（${error.message.split(':')[0]}）`;
+                    showToast('APIエラー（400）。この問題はAI採点できません', 'error');
+                } else {
+                    reason = "通信エラーのため簡易判定しました。";
+                }
+
+                const keywords = q.md.replace(/[①②ア：イ：、。]/g, ' ').split(/\s+/).filter(k => k.length > 1);
+                let matchCount = 0;
+                keywords.forEach(k => { if (userAnswer.includes(k)) matchCount++; });
+                if (matchCount >= keywords.length / 2 && keywords.length > 0) res = 5;
+                else if (userAnswer.length > 0) res = 3;
+
+                displayFeedback(index, res, reason, "", q.md);
+            } finally {
+                loadingEl.classList.add('hidden');
+            }
         }
 
-        const keywords = q.md.replace(/[①②ア：イ：、。]/g, ' ').split(/\s+/).filter(k => k.length > 1);
-        let matchCount = 0;
-        keywords.forEach(k => { if (userAnswer.includes(k)) matchCount++; });
-        if (matchCount >= keywords.length / 2 && keywords.length > 0) res = "正解";
-        else if (userAnswer.length > 0) res = "一部正解";
+        async function sendChatMessage(index) {
+            const q = QS[index];
+            const qId = q.id;
+            const inputEl = document.getElementById(`chat-input-${index}`);
+            const inputVal = inputEl.value.trim();
 
-        displayFeedback(index, res, reason, "", q.md);
-    } finally {
-        loadingEl.classList.add('hidden');
-    }
-}
+            if (!inputVal) return;
+            if (!appData.apiKey && !appData.groqApiKey) { showToast('チャットにはAPIキーが必要です', 'error'); return; }
 
-async function sendChatMessage(index) {
-    const q = QS[index];
-    const qId = q.id;
-    const inputEl = document.getElementById(`chat-input-${index}`);
-    const inputVal = inputEl.value.trim();
+            inputEl.value = '';
+            const chatLogEl = document.getElementById(`chat-log-${index}`);
 
-    if (!inputVal) return;
-    if (!appData.apiKey && !appData.groqApiKey) { showToast('チャットにはAPIキーが必要です', 'error'); return; }
-
-    inputEl.value = '';
-    const chatLogEl = document.getElementById(`chat-log-${index}`);
-
-    chatLogEl.innerHTML += `
+            chatLogEl.innerHTML += `
         <div class="flex justify-end">
             <div class="bg-emerald-100 text-emerald-900 border border-emerald-200 px-3 py-2 rounded-xl rounded-tr-sm max-w-[85%] text-xs font-medium shadow-sm">${inputVal}</div>
         </div>`;
-    chatLogEl.scrollTop = chatLogEl.scrollHeight;
+            chatLogEl.scrollTop = chatLogEl.scrollHeight;
 
-    if (!appData.chatHistories[qId]) appData.chatHistories[qId] = [];
-    appData.chatHistories[qId].push({ role: "user", parts: [{ text: inputVal }] });
+            if (!appData.chatHistories[qId]) appData.chatHistories[qId] = [];
+            appData.chatHistories[qId].push({ role: "user", parts: [{ text: inputVal }] });
 
-    const loadingId = `chat-loading-${Date.now()}`;
-    chatLogEl.innerHTML += `
+            const loadingId = `chat-loading-${Date.now()}`;
+            chatLogEl.innerHTML += `
         <div id="${loadingId}" class="flex">
             <div class="bg-slate-100 border border-slate-200 text-slate-500 px-3 py-2 rounded-xl rounded-tl-sm text-xs flex items-center gap-2">
                 <i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> 回答を生成中...
             </div>
         </div>`;
-    lucide.createIcons();
-    chatLogEl.scrollTop = chatLogEl.scrollHeight;
+            lucide.createIcons();
+            chatLogEl.scrollTop = chatLogEl.scrollHeight;
 
-    try {
-        const sysPrompt = "あなたは測量士試験の専門家です。ユーザーの質問・指摘に対して専門的かつ謙虚に答えてください。過去の採点や解説に誤りがあれば素直に認め正しい解説を提供してください。※重要: これ以降はJSON形式ではなく、必ず通常の自然言語（Markdown可）で返答してください。";
-        const replyText = await callLLM(appData.chatHistories[qId], false, sysPrompt);
+            try {
+                const sysPrompt = `あなたは測量士試験の専門家であり、先ほどの解答を採点した採点官です。
+ユーザーから採点結果に対する質問や反論が届いています。専門的かつ謙虚に対話し、あなたの採点に誤りや厳しすぎる点があれば素直に認めて点数を修正してください。
+※重要※ これまでのJSONフォーマット（score, reason, missing）は無視し、今回の返答からは【必ず】以下の新しいJSON形式のみを出力してください。プログラムが処理するため、JSON以外の文字列（「わかりました」等）は一切含めないでください。
 
-        appData.chatHistories[qId].push({ role: "model", parts: [{ text: replyText }] });
-        saveData();
+{
+  "newScore": <1〜5の整数。採点を修正する場合は新しい点数。修正しない場合は現在の点数>,
+  "reply": "<ユーザーへの返答テキスト。Markdown可。JSONの話や『出力します』等のメタ発言は一切しないこと>"
+}`;
+                // チャットもJSONモードで呼び出す
+                const replyText = await callLLM(appData.chatHistories[qId], true, sysPrompt);
 
-        document.getElementById(loadingId)?.remove();
-        
-        let parsedModelTxt = replyText;
-        try {
-            const parsed = JSON.parse(parsedModelTxt);
-            if(parsed.reason) parsedModelTxt = parsed.reason; 
-        } catch(e){}
-        const formattedReply = marked.parse ? marked.parse(parsedModelTxt) : parsedModelTxt.replace(/\n/g, '<br>');
-        chatLogEl.innerHTML += `
+                appData.chatHistories[qId].push({ role: "model", parts: [{ text: replyText }] });
+                saveData();
+
+                document.getElementById(loadingId)?.remove();
+                
+                let botReply = replyText;
+                let newScore = null;
+                try {
+                    let cleanText = replyText.replace(/```json\\n?/gi, '').replace(/```/g, '').trim();
+                    const parsed = JSON.parse(cleanText);
+                    if (parsed.reply) botReply = parsed.reply;
+                    if (parsed.newScore !== undefined) newScore = parseInt(parsed.newScore);
+                } catch(e) {
+                    console.warn("Chat JSON parse failed", e);
+                }
+
+                const formattedReply = marked.parse ? marked.parse(botReply) : botReply.replace(/\n/g, '<br>');
+                
+                // 点数が変更された場合はバッジを更新
+                let scoreChangeNotice = "";
+                if (newScore !== null && !isNaN(newScore) && newScore >= 1 && newScore <= 5) {
+                    const oldScore = appData.scores[qId] || 1;
+                    if (oldScore !== newScore) {
+                        appData.scores[qId] = newScore;
+                        updateBadgeDOM(index, newScore);
+                        saveData();
+                        scoreChangeNotice = `<div class="mt-3 inline-block bg-emerald-50 border border-emerald-200 text-emerald-700 px-2 py-1.5 rounded text-[11px] font-bold shadow-sm"><i data-lucide="refresh-cw" class="w-3.5 h-3.5 inline mr-1"></i> AIが採点を ${oldScore}点 から ${newScore}点 に修正しました！</div>`;
+                        
+                        // 5点になったら自動完璧
+                        if (newScore >= 5 && !appData.mastered.includes(qId)) {
+                            toggleMaster(index);
+                        }
+                    }
+                }
+
+                chatLogEl.innerHTML += `
             <div class="flex">
                 <div class="bg-white border border-slate-200 text-slate-800 px-4 py-3 rounded-xl rounded-tl-sm max-w-[95%] text-xs leading-relaxed shadow-sm markdown-body">
                     <div class="font-black text-[10px] text-emerald-600 mb-1">AIアシスタント</div>
                     ${formattedReply}
+                    ${scoreChangeNotice}
                 </div>
             </div>`;
-        chatLogEl.scrollTop = chatLogEl.scrollHeight;
+                chatLogEl.scrollTop = chatLogEl.scrollHeight;
 
-    } catch (error) {
-        document.getElementById(loadingId)?.remove();
-        const msg = error.message?.startsWith('CLIENT_ERROR') ? 'APIエラーが発生しました' : '通信エラーが発生しました';
-        chatLogEl.innerHTML += `
+            } catch (error) {
+                document.getElementById(loadingId)?.remove();
+                const msg = error.message?.startsWith('CLIENT_ERROR') ? 'APIエラーが発生しました' : '通信エラーが発生しました';
+                chatLogEl.innerHTML += `
             <div class="flex">
                 <div class="bg-rose-50 border border-rose-200 text-rose-800 px-3 py-2 rounded-xl rounded-tl-sm max-w-[85%] text-xs shadow-sm">${msg}</div>
             </div>`;
-    }
-}
+            }
+        }
         function renderChatHistory(index) {
             const qId = QS[index].id;
             const history = appData.chatHistories[qId];
             const chatLogEl = document.getElementById(`chat-log-${index}`);
-            if(!chatLogEl || !history) return;
+            if (!chatLogEl || !history) return;
 
             for (let i = 2; i < history.length; i++) {
                 const msg = history[i];
@@ -854,7 +971,7 @@ async function sendChatMessage(index) {
             modal.classList.remove('hidden'); modal.style.display = 'flex';
             requestAnimationFrame(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); });
         }
-        
+
         function closeSettingsModal() {
             const modal = document.getElementById('settings-modal');
             const content = document.getElementById('settings-modal-content');
@@ -872,7 +989,7 @@ async function sendChatMessage(index) {
             showToast('設定を保存しました', 'success');
         }
 
-       async function syncToCloud() {
+        async function syncToCloud() {
             const token = document.getElementById('gist-token-input').value.trim();
             let gistId = document.getElementById('gist-id-input').value.trim();
             if (!token) { showToast('GitHub Tokenを入力してください', 'error'); return; }
@@ -897,7 +1014,7 @@ async function sendChatMessage(index) {
                         headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
                         body: JSON.stringify({ description: "測量士午後対策アプリ セーブデータ", public: false, files: { "sokuryoshi_save.json": { content: JSON.stringify(safeUploadData, null, 2) } } })
                     });
-                    if(!res.ok) throw new Error('API Error');
+                    if (!res.ok) throw new Error('API Error');
                     const data = await res.json();
                     gistId = data.id;
                     appData.gistId = gistId;
@@ -909,7 +1026,7 @@ async function sendChatMessage(index) {
                         headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
                         body: JSON.stringify({ files: { "sokuryoshi_save.json": { content: JSON.stringify(safeUploadData, null, 2) } } })
                     });
-                    if(!res.ok) throw new Error('API Error');
+                    if (!res.ok) throw new Error('API Error');
                     appData.gistId = gistId;
                     showToast('クラウドに上書き保存しました！', 'success');
                 }
@@ -936,11 +1053,11 @@ async function sendChatMessage(index) {
                 const res = await fetch(`https://api.github.com/gists/${gistId}`, {
                     headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
                 });
-                if(!res.ok) throw new Error('API Error');
+                if (!res.ok) throw new Error('API Error');
                 const json = await res.json();
                 const content = json.files["sokuryoshi_save.json"].content;
                 const parsed = JSON.parse(content);
-                
+
                 if (parsed.scores !== undefined) {
                     appData = parsed;
                     appData.gistToken = token;
@@ -957,7 +1074,7 @@ async function sendChatMessage(index) {
             }
         }
 
-// ついでに手動ファイル書き出しの方も安全にしました
+        // ついでに手動ファイル書き出しの方も安全にしました
         function exportData() {
             // 【修正箇所】ダウンロードするファイルからもAPIキーとTokenを削除
             const safeExportData = { ...appData };
@@ -970,7 +1087,7 @@ async function sendChatMessage(index) {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `sokuryoshi_save_${new Date().toISOString().slice(0,10)}.json`;
+            a.download = `sokuryoshi_save_${new Date().toISOString().slice(0, 10)}.json`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -982,7 +1099,7 @@ async function sendChatMessage(index) {
             const file = event.target.files[0];
             if (!file) return;
             const reader = new FileReader();
-            reader.onload = function(e) {
+            reader.onload = function (e) {
                 try {
                     const parsed = JSON.parse(e.target.result);
                     if (parsed.scores !== undefined) {
@@ -992,19 +1109,19 @@ async function sendChatMessage(index) {
                         showToast('データを復元しました。画面をリロードします', 'success');
                         setTimeout(() => location.reload(), 1500);
                     } else { throw new Error("Invalid Format"); }
-                } catch(error) { showToast('ファイルの読み込みに失敗しました', 'error'); }
+                } catch (error) { showToast('ファイルの読み込みに失敗しました', 'error'); }
             };
             reader.readAsText(file);
         }
 
         // --- カスタムトースト & リセット用モーダル ---
-        function showToast(msg, type='info') {
+        function showToast(msg, type = 'info') {
             const toast = document.getElementById('toast');
             const icon = document.getElementById('toast-icon');
             document.getElementById('toast-message').textContent = msg;
             toast.className = `fixed bottom-5 left-1/2 -translate-x-1/2 opacity-0 transition-all duration-300 z-50 flex items-center gap-2 px-5 py-2.5 rounded-xl shadow-lg font-bold text-white text-sm min-w-[250px] justify-center transform translate-y-10`;
-            if(type === 'error') { toast.classList.add('bg-rose-600'); icon.setAttribute('data-lucide', 'alert-circle'); } 
-            else if(type === 'success') { toast.classList.add('bg-emerald-600'); icon.setAttribute('data-lucide', 'check-circle-2'); } 
+            if (type === 'error') { toast.classList.add('bg-rose-600'); icon.setAttribute('data-lucide', 'alert-circle'); }
+            else if (type === 'success') { toast.classList.add('bg-emerald-600'); icon.setAttribute('data-lucide', 'check-circle-2'); }
             else { toast.classList.add('bg-slate-800'); icon.setAttribute('data-lucide', 'info'); }
             lucide.createIcons();
             requestAnimationFrame(() => toast.classList.remove('opacity-0', 'translate-y-10'));
@@ -1034,9 +1151,19 @@ async function sendChatMessage(index) {
         }
     </script>
     <style>
-        .markdown-body p { margin-bottom: 0.5em; }
-        .markdown-body p:last-child { margin-bottom: 0; }
-        .markdown-body strong { font-weight: 900; color: #0f172a; }
+        .markdown-body p {
+            margin-bottom: 0.5em;
+        }
+
+        .markdown-body p:last-child {
+            margin-bottom: 0;
+        }
+
+        .markdown-body strong {
+            font-weight: 900;
+            color: #0f172a;
+        }
     </style>
 </body>
+
 </html>
