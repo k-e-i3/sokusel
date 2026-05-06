@@ -67,13 +67,7 @@
                 </div>
             </div>
 
-            <div class="flex justify-between items-end mb-1.5">
-                <div class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Progress</div>
-                <div class="text-xs font-black text-emerald-700" id="progress-text">0 / 100 完了</div>
-            </div>
-            <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden shadow-inner">
-                <div class="bg-emerald-500 h-full rounded-full progress-transition relative overflow-hidden" id="progress-bar" style="width: 0%"></div>
-            </div>
+
         </div>
 
         <div id="question-container" class="min-h-[300px]"></div>
@@ -236,7 +230,6 @@
         
         function saveData() {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
-            updateProgressUI();
         }
 
         // --- タブとフィルター ---
@@ -302,7 +295,6 @@
             currentIndex = 0; 
             renderFilters();
             updateView();
-            updateProgressUI();
         }
 
         function navigateRandom() {
@@ -735,12 +727,6 @@ async function sendChatMessage(index) {
                     chatLogEl.innerHTML += `<div class="flex"><div class="bg-white border border-slate-200 text-slate-800 px-4 py-3 rounded-xl rounded-tl-sm max-w-[95%] text-xs leading-relaxed shadow-sm markdown-body"><div class="font-black text-[10px] text-emerald-600 mb-1">AIアシスタント</div>${formattedReply}</div></div>`;
                 }
             }
-        }
-
-        function updateProgressUI() {
-            const completedCount = Object.keys(appData.scores).length;
-            document.getElementById('progress-text').textContent = `${completedCount} / ${QS.length} 完了`;
-            document.getElementById('progress-bar').style.width = `${(completedCount / QS.length) * 100}%`;
         }
 
         // --- 設定＆データ移行モーダル ---
