@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>測量士午後 必須No.1 徹底対策アプリ</title>
+    <title>測量士午後対策アプリ</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -61,6 +61,19 @@
         .toggle-checkbox:checked+.toggle-label {
             background-color: #10b981;
         }
+
+        .markdown-body p {
+            margin-bottom: 0.5em;
+        }
+
+        .markdown-body p:last-child {
+            margin-bottom: 0;
+        }
+
+        .markdown-body strong {
+            font-weight: 900;
+            color: #0f172a;
+        }
     </style>
     <!-- 外部化された問題データ群 -->
     <script src="js/data_pm_mandatory.js"></script>
@@ -77,9 +90,9 @@
             <div>
                 <h1 class="text-lg md:text-xl font-black text-slate-900 flex items-center gap-2">
                     <i data-lucide="book-open-check" class="text-emerald-600 w-6 h-6"></i>
-                    測量士午後 必須No.1 対策ツール
+                    測量士午後 対策ツール
                 </h1>
-                <p class="text-slate-500 mt-1 text-xs md:text-sm font-medium">厳選過去問100題・正解で自動非表示・AIチャット機能</p>
+                <p class="text-slate-500 mt-1 text-xs md:text-sm font-medium">厳選過去問・正解で自動非表示・AIチャット機能</p>
             </div>
             <div class="flex gap-2">
                 <button onclick="showSettingsModal()"
@@ -116,8 +129,6 @@
                     </div>
                 </div>
             </div>
-
-
         </div>
 
         <div id="question-container" class="min-h-[300px]"></div>
@@ -128,10 +139,17 @@
                 class="flex items-center gap-1.5 px-4 py-2 text-slate-600 hover:bg-slate-100 font-bold rounded-lg transition-colors text-sm">
                 <i data-lucide="chevron-left" class="w-4 h-4"></i> 前へ
             </button>
-            <div class="flex flex-col items-center">
-                <span class="text-slate-400 text-[10px] font-bold tracking-wider mb-0.5">QUESTION</span>
-                <span class="text-slate-700 font-black text-base" id="question-counter">- / -</span>
+            
+            <div class="flex flex-col items-center relative">
+                <span class="text-slate-400 text-[10px] font-bold tracking-wider mb-0">JUMP TO</span>
+                <div class="relative flex items-center">
+                    <select id="jump-select" onchange="jumpToQuestion(this.value)" class="text-slate-700 font-black text-base bg-transparent border-none focus:ring-0 cursor-pointer appearance-none pl-2 pr-6 py-1 outline-none hover:text-emerald-600 transition-colors text-center">
+                        <!-- options dynamically added -->
+                    </select>
+                    <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 absolute right-1 pointer-events-none"></i>
+                </div>
             </div>
+
             <div class="flex gap-2">
                 <button onclick="navigateRandom()"
                     class="flex items-center gap-1.5 px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg transition-colors shadow-sm text-sm">
@@ -151,6 +169,44 @@
         <span id="toast-message">メッセージ</span>
     </div>
 
+    <!-- 編集モーダル -->
+    <div id="edit-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-2xl p-5 md:p-6 max-w-2xl w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 max-h-[90vh] overflow-y-auto" id="edit-modal-content">
+            <div class="flex justify-between items-center mb-5 border-b border-slate-100 pb-3">
+                <h3 class="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <i data-lucide="edit-3" class="w-5 h-5 text-slate-500"></i> 問題を編集
+                </h3>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            
+            <input type="hidden" id="edit-q-index">
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">種類 (tp)</label>
+                    <input type="text" id="edit-tp" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">問題文 (q)</label>
+                    <textarea id="edit-q" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[100px]"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">ヒント (ht)</label>
+                    <textarea id="edit-ht" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[60px]"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-bold text-slate-700 mb-1">模範解答 (md)</label>
+                    <textarea id="edit-md" class="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[60px]"></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-6">
+                <button onclick="closeEditModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-sm font-bold transition-colors">キャンセル</button>
+                <button onclick="saveEditQuestion()" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-colors shadow-sm">保存して反映</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 設定モーダル -->
     <div id="settings-modal"
         class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center opacity-0 transition-opacity duration-300">
         <div class="bg-white rounded-2xl p-5 md:p-6 max-w-md w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300 max-h-[90vh] overflow-y-auto"
@@ -176,7 +232,7 @@
 
             <div class="mb-6 border-t border-slate-100 pt-4">
                 <label class="block text-sm font-bold text-slate-700 mb-2 flex items-center gap-1.5">
-                    <i data-lucide="cloud" class="w-4 h-4 text-blue-500"></i> 2. クラウド同期 (PC ↔ iPad)
+                    <i data-lucide="cloud" class="w-4 h-4 text-blue-500"></i> 2. クラウド同期 (PC ⇔ iPad)
                 </label>
                 <p class="text-[11px] text-slate-500 mb-3 leading-relaxed">
                     Google Driveは数日で認証が切れてしまうため、お使いの<b>GitHub (Gist)</b>を利用した無期限の同期機能をご用意しました。<br>
@@ -235,6 +291,7 @@
         </div>
     </div>
 
+    <!-- リセットモーダル -->
     <div id="reset-modal"
         class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center opacity-0 transition-opacity duration-300">
         <div class="bg-white rounded-2xl p-5 md:p-6 max-w-sm w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300"
@@ -269,7 +326,7 @@
 
         // --- ステート管理 ---
         const STORAGE_KEY = 'sokuryoshi_app_data_final';
-        let appData = { scores: {}, mastered: [], answers: {}, hideMastered: true, chatHistories: {}, apiKey: "", gistToken: "", gistId: "" };
+        let appData = { scores: {}, mastered: [], answers: {}, hideMastered: true, chatHistories: {}, apiKey: "", gistToken: "", gistId: "", customQuestions: {} };
         let currentIndex = 0;
         let currentFilter = "すべて";
         const types = ["すべて", "穴埋め", "手続き", "記述", "正誤", "数値", "分類", "積算"];
@@ -277,6 +334,7 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             loadData();
+            applyCustomQuestions(); // 編集したデータを適用
             lucide.createIcons();
             document.getElementById('hide-mastered-toggle').checked = appData.hideMastered;
             document.getElementById('api-key-input').value = appData.apiKey || "";
@@ -286,25 +344,10 @@
 
         function loadData() {
             let saved = localStorage.getItem(STORAGE_KEY);
-            if (!saved) {
-                const oldKeys = ['sokuryoshi_app_data_v6', 'sokuryoshi_app_data_v5', 'sokuryoshi_app_data_v4', 'sokuryoshi_app_data_v3'];
-                for (const key of oldKeys) {
-                    saved = localStorage.getItem(key);
-                    if (saved) { localStorage.setItem(STORAGE_KEY, saved); break; }
-                }
-            }
             if (saved) {
                 try {
                     const parsed = JSON.parse(saved);
                     appData.scores = parsed.scores || {};
-
-                    // 移行処理: ok -> 5, pt -> 3, ng -> 1
-                    for (let qid in appData.scores) {
-                        if (appData.scores[qid] === 'ok') appData.scores[qid] = 5;
-                        else if (appData.scores[qid] === 'pt') appData.scores[qid] = 3;
-                        else if (appData.scores[qid] === 'ng') appData.scores[qid] = 1;
-                    }
-
                     appData.mastered = parsed.mastered || [];
                     appData.answers = parsed.answers || {};
                     appData.hideMastered = parsed.hideMastered !== undefined ? parsed.hideMastered : true;
@@ -313,12 +356,25 @@
                     appData.groqApiKey = parsed.groqApiKey || "";
                     appData.gistToken = parsed.gistToken || "";
                     appData.gistId = parsed.gistId || "";
+                    appData.customQuestions = parsed.customQuestions || {};
                 } catch (e) { console.error('Failed to parse local storage'); }
             }
         }
 
         function saveData() {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+        }
+
+        // 編集された問題データの上書き適用
+        function applyCustomQuestions() {
+            if (!appData.customQuestions) return;
+            for (let cat in DATASETS) {
+                DATASETS[cat].forEach(q => {
+                    if (appData.customQuestions[q.id]) {
+                        Object.assign(q, appData.customQuestions[q.id]);
+                    }
+                });
+            }
         }
 
         // --- タブとフィルター ---
@@ -386,6 +442,11 @@
             updateView();
         }
 
+        function jumpToQuestion(idx) {
+            currentIndex = parseInt(idx);
+            updateView();
+        }
+
         function navigateRandom() {
             if (filteredIndices.length <= 1) return;
             let newIndex;
@@ -418,7 +479,7 @@
             const navContainer = document.getElementById('nav-container');
 
             if (filteredIndices.length === 0) {
-                let msg = currentFilter === "すべて" ? "🎉 100問すべて完璧にマスターしました！素晴らしいです！" : `このカテゴリーの問題はすべて完璧です！`;
+                let msg = currentFilter === "すべて" ? "👏 100問すべて完璧にマスターしました！素晴らしいです！" : `このカテゴリーの問題はすべて完璧です！`;
                 if (!appData.hideMastered && QS.length > 0) msg = "条件に一致する問題がありません。";
                 container.innerHTML = `
                     <div class="bg-white rounded-xl border-2 border-dashed border-emerald-200 p-10 text-center animate-fade-in shadow-sm">
@@ -437,21 +498,25 @@
             const globalIndex = filteredIndices[currentIndex];
             const q = QS[globalIndex];
 
-            document.getElementById('question-counter').textContent = `${currentIndex + 1} / ${filteredIndices.length}`;
-
-            const scoreStatus = appData.scores[q.id];
-            let statusBadge = '';
-            if (scoreStatus >= 5) statusBadge = '<span class="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded text-xs font-bold border border-emerald-200"><i data-lucide="check-circle-2" class="w-3 h-3"></i>5 / 5点</span>';
-            else if (scoreStatus >= 3) statusBadge = '<span class="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-xs font-bold border border-amber-200"><i data-lucide="alert-circle" class="w-3 h-3"></i>' + scoreStatus + ' / 5点</span>';
-            else if (scoreStatus >= 1) statusBadge = '<span class="flex items-center gap-1 px-2 py-0.5 bg-rose-100 text-rose-800 rounded text-xs font-bold border border-rose-200"><i data-lucide="x-circle" class="w-3 h-3"></i>' + scoreStatus + ' / 5点</span>';
+            // ジャンプ用のドロップダウン更新
+            let optionsHtml = '';
+            for (let i = 0; i < filteredIndices.length; i++) {
+                const tmpQ = QS[filteredIndices[i]];
+                optionsHtml += `<option value="${i}" ${i === currentIndex ? 'selected' : ''}>No. ${tmpQ.id}</option>`;
+            }
+            const jumpSelect = document.getElementById('jump-select');
+            if (jumpSelect) jumpSelect.innerHTML = optionsHtml;
 
             const isMastered = appData.mastered.includes(q.id);
             const masterBtnClass = isMastered
                 ? "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200"
                 : "bg-white text-slate-500 border-slate-200 hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50";
-            const masterBtnText = isMastered ? "完璧を解除" : "🌟 完璧！";
+            const masterBtnText = isMastered ? "完璧を解除" : "⭐ 完璧！";
             const masterIcon = isMastered ? "star-off" : "star";
             const savedAns = appData.answers[q.id] || "";
+
+            // q.id を文字列として扱うためのエスケープ処理（数字以外のID対策）
+            const safeQId = String(q.id).replace(/'/g, "\\'");
 
             container.innerHTML = `
                 <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 md:p-8 animate-fade-in relative overflow-hidden">
@@ -462,7 +527,10 @@
                             <span class="px-2.5 py-1 bg-slate-800 text-white rounded text-xs font-bold shadow-sm">No. ${q.id}</span>
                             <span class="px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded text-xs font-bold border border-indigo-200">${q.tp}</span>
                             <span class="px-2.5 py-1 bg-slate-100 text-slate-600 rounded text-xs font-medium border border-slate-200">${q.yr}</span>
-                            <div id="status-badge-container-${globalIndex}">${statusBadge}</div>
+                            <button onclick="openEditModal(${globalIndex})" class="px-2 py-1 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors text-xs flex items-center gap-1" title="問題を編集">
+                                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i> 編集
+                            </button>
+                            <div id="status-badge-container-${globalIndex}" class="flex items-center"></div>
                         </div>
                         <button id="master-btn-${globalIndex}" onclick="toggleMaster(${globalIndex})" class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors shadow-sm ${masterBtnClass}">
                             <i data-lucide="${masterIcon}" class="w-3.5 h-3.5"></i> <span>${masterBtnText}</span>
@@ -477,7 +545,7 @@
                     </div>
 
                     <div class="mb-5">
-                        <textarea id="answer-${globalIndex}" class="w-full min-h-[100px] p-4 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all resize-y text-slate-800 text-sm md:text-sm font-medium shadow-inner placeholder:font-normal" placeholder="ここに解答を入力してください..." oninput="saveAnswerTemp(${q.id}, this.value)">${savedAns}</textarea>
+                        <textarea id="answer-${globalIndex}" class="w-full min-h-[100px] p-4 bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500 outline-none transition-all resize-y text-slate-800 text-sm md:text-sm font-medium shadow-inner placeholder:font-normal" placeholder="ここに解答を入力してください..." oninput="saveAnswerTemp('${safeQId}', this.value)">${savedAns}</textarea>
                     </div>
 
                     <div class="flex flex-wrap gap-2.5">
@@ -498,7 +566,7 @@
 
                     <div id="feedback-${globalIndex}" class="hidden mt-6"></div>
 
-<!-- ↓ここからチャット欄を追加↓ -->
+                    <!-- チャット欄 -->
                     <div class="mt-8 pt-6 border-t border-slate-200">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="font-black text-sm text-slate-700 flex items-center gap-2">
@@ -516,17 +584,17 @@
                             </button>
                         </div>
                     </div>
-<!-- ↑ここまで↑ -->
-                    
                 </div>
             `;
-            lucide.createIcons();
+            
+            const scoreStatus = appData.scores[q.id];
+            updateBadgeDOM(globalIndex, scoreStatus || 0);
 
             // チャット履歴の復元
             const chatLogEl = document.getElementById(`chat-log-${globalIndex}`);
             if (chatLogEl && appData.chatHistories[q.id]) {
                 const history = appData.chatHistories[q.id];
-                for (let i = 1; i < history.length; i++) { // index 0 is system prompt
+                for (let i = 1; i < history.length; i++) {
                     const msg = history[i];
                     if (msg.role === 'user') {
                         chatLogEl.innerHTML += `
@@ -538,6 +606,7 @@
                         try {
                             const parsed = JSON.parse(parsedModelTxt);
                             if (parsed.reason) parsedModelTxt = parsed.reason;
+                            if (parsed.reply) parsedModelTxt = parsed.reply;
                         } catch (e) { }
                         const formattedReply = marked.parse(parsedModelTxt);
                         chatLogEl.innerHTML += `<div class="flex"><div class="bg-white border border-slate-200 text-slate-800 px-4 py-3 rounded-xl rounded-tl-sm max-w-[95%] text-xs leading-relaxed shadow-sm markdown-body"><div class="font-black text-[10px] text-emerald-600 mb-1">AIアシスタント</div>${formattedReply}</div></div>`;
@@ -547,8 +616,100 @@
             }
         }
 
+        // --- 編集モーダル関連 ---
+        function openEditModal(globalIndex) {
+            const q = QS[globalIndex];
+            document.getElementById('edit-q-index').value = globalIndex;
+            document.getElementById('edit-tp').value = q.tp || "";
+            document.getElementById('edit-q').value = q.q || "";
+            document.getElementById('edit-ht').value = q.ht || "";
+            document.getElementById('edit-md').value = q.md || "";
+            
+            const modal = document.getElementById('edit-modal');
+            const content = document.getElementById('edit-modal-content');
+            modal.classList.remove('hidden'); modal.style.display = 'flex';
+            requestAnimationFrame(() => { modal.classList.remove('opacity-0'); content.classList.remove('scale-95'); });
+        }
+
+        function closeEditModal() {
+            const modal = document.getElementById('edit-modal');
+            const content = document.getElementById('edit-modal-content');
+            modal.classList.add('opacity-0'); content.classList.add('scale-95');
+            setTimeout(() => { modal.classList.add('hidden'); modal.style.display = 'none'; }, 300);
+        }
+
+        function saveEditQuestion() {
+            const globalIndex = parseInt(document.getElementById('edit-q-index').value);
+            const q = QS[globalIndex];
+            
+            const tp = document.getElementById('edit-tp').value;
+            const textQ = document.getElementById('edit-q').value;
+            const ht = document.getElementById('edit-ht').value;
+            const md = document.getElementById('edit-md').value;
+            
+            // 現在の配列オブジェクトを更新
+            q.tp = tp;
+            q.q = textQ;
+            q.ht = ht;
+            q.md = md;
+            
+            // localStorageに差分を保存
+            if (!appData.customQuestions) appData.customQuestions = {};
+            appData.customQuestions[q.id] = { tp, q: textQ, ht, md };
+            saveData();
+            
+            closeEditModal();
+            showToast('問題データを一時保存しました。次回以降も反映されます', 'success');
+            updateView();
+        }
+
+        function setManualScore(globalIndex, newScore) {
+            const qId = QS[globalIndex].id;
+            appData.scores[qId] = newScore;
+            saveData();
+            
+            updateBadgeDOM(globalIndex, newScore);
+            
+            let message = `点数を手動で ${newScore}点 に変更しました`;
+
+            if (newScore >= 5 && !appData.mastered.includes(qId)) {
+                appData.mastered.push(qId);
+                saveData();
+                updateMasterButtonDOM(globalIndex, true);
+                if (appData.hideMastered) {
+                    message += '。完璧にしました（次へ進むと非表示になります）';
+                } else {
+                    message += '。完璧リストに追加しました';
+                }
+            } else if (newScore < 5 && appData.mastered.includes(qId)) {
+                appData.mastered = appData.mastered.filter(id => id !== qId);
+                saveData();
+                updateMasterButtonDOM(globalIndex, false);
+                message += '。「完璧」を解除しました';
+            }
+            
+            showToast(message, 'info');
+        }
+
+        function updateMasterButtonDOM(globalIndex, isMastered) {
+            const btn = document.getElementById(`master-btn-${globalIndex}`);
+            const border = document.getElementById(`card-border-${globalIndex}`);
+            if (btn && border) {
+                if (isMastered) {
+                    btn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors shadow-sm bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200";
+                    btn.innerHTML = `<i data-lucide="star-off" class="w-3.5 h-3.5"></i> <span>完璧を解除</span>`;
+                    border.className = "absolute top-0 left-0 w-1 h-full bg-amber-400 transition-colors duration-300";
+                } else {
+                    btn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors shadow-sm bg-white text-slate-500 border-slate-200 hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50";
+                    btn.innerHTML = `<i data-lucide="star" class="w-3.5 h-3.5"></i> <span>⭐ 完璧！</span>`;
+                    border.className = "absolute top-0 left-0 w-1 h-full bg-emerald-500 transition-colors duration-300";
+                }
+                lucide.createIcons();
+            }
+        }
+
         function clearChat(index) {
-            if (!confirm("この問題のチャット履歴を削除しますか？\\n※採点結果はそのまま残ります。")) return;
+            if (!confirm("この問題のチャット履歴を削除しますか？\n※採点結果はそのまま残ります。")) return;
             const qId = QS[index].id;
             appData.chatHistories[qId] = [];
             saveData();
@@ -565,27 +726,14 @@
             if (isMastered) {
                 appData.mastered = appData.mastered.filter(id => id !== qId);
                 showToast('「完璧」を解除しました', 'info');
+                updateMasterButtonDOM(globalIndex, false);
             } else {
                 appData.mastered.push(qId);
-                if (appData.hideMastered) showToast('🌟 完璧にしました！（次へ進むと非表示になります）', 'success');
-                else showToast('🌟 完璧リストに追加しました！', 'success');
+                if (appData.hideMastered) showToast('⭐ 完璧にしました！（次へ進むと非表示になります）', 'success');
+                else showToast('⭐ 完璧リストに追加しました！', 'success');
+                updateMasterButtonDOM(globalIndex, true);
             }
             saveData();
-
-            const btn = document.getElementById(`master-btn-${globalIndex}`);
-            const border = document.getElementById(`card-border-${globalIndex}`);
-            if (btn && border) {
-                if (appData.mastered.includes(qId)) {
-                    btn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors shadow-sm bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200";
-                    btn.innerHTML = `<i data-lucide="star-off" class="w-3.5 h-3.5"></i> <span>完璧を解除</span>`;
-                    border.className = "absolute top-0 left-0 w-1 h-full bg-amber-400 transition-colors duration-300";
-                } else {
-                    btn.className = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors shadow-sm bg-white text-slate-500 border-slate-200 hover:border-amber-300 hover:text-amber-600 hover:bg-amber-50";
-                    btn.innerHTML = `<i data-lucide="star" class="w-3.5 h-3.5"></i> <span>🌟 完璧！</span>`;
-                    border.className = "absolute top-0 left-0 w-1 h-full bg-emerald-500 transition-colors duration-300";
-                }
-                lucide.createIcons();
-            }
         }
 
         function toggleHint(index) {
@@ -647,24 +795,35 @@
 
             lucide.createIcons();
 
-            // スコアを保存して上部のバッジを更新
             const qId = QS[index].id;
             appData.scores[qId] = scoreVal;
             saveData();
             updateBadgeDOM(index, scoreVal);
 
-            // 5点満点の場合、自動で「完璧」にする
             if (scoreVal >= 5 && !appData.mastered.includes(qId)) {
-                toggleMaster(index); // This automatically saves and shows a toast
+                toggleMaster(index); 
             }
         }
 
         function updateBadgeDOM(index, scoreVal) {
             const badgeContainer = document.getElementById(`status-badge-container-${index}`);
             if (!badgeContainer) return;
-            if (scoreVal >= 5) badgeContainer.innerHTML = '<span class="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded text-xs font-bold border border-emerald-200"><i data-lucide="check-circle-2" class="w-3 h-3"></i>5 / 5点</span>';
-            else if (scoreVal >= 3) badgeContainer.innerHTML = '<span class="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-xs font-bold border border-amber-200"><i data-lucide="alert-circle" class="w-3 h-3"></i>' + scoreVal + ' / 5点</span>';
-            else if (scoreVal >= 1) badgeContainer.innerHTML = '<span class="flex items-center gap-1 px-2 py-0.5 bg-rose-100 text-rose-800 rounded text-xs font-bold border border-rose-200"><i data-lucide="x-circle" class="w-3 h-3"></i>' + scoreVal + ' / 5点</span>';
+            
+            let badgeHtml = '';
+            if (scoreVal >= 5) badgeHtml = '<span class="flex items-center gap-1 px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded text-xs font-bold border border-emerald-200"><i data-lucide="check-circle-2" class="w-3 h-3"></i>5 / 5点</span>';
+            else if (scoreVal >= 3) badgeHtml = '<span class="flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-xs font-bold border border-amber-200"><i data-lucide="alert-circle" class="w-3 h-3"></i>' + scoreVal + ' / 5点</span>';
+            else if (scoreVal >= 1) badgeHtml = '<span class="flex items-center gap-1 px-2 py-0.5 bg-rose-100 text-rose-800 rounded text-xs font-bold border border-rose-200"><i data-lucide="x-circle" class="w-3 h-3"></i>' + scoreVal + ' / 5点</span>';
+            else badgeHtml = '<span class="flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-xs font-bold border border-slate-200"><i data-lucide="minus" class="w-3 h-3"></i>未採点</span>';
+
+            let manualControls = `
+                <div class="flex items-center gap-0.5 bg-white border border-slate-200 rounded p-0.5 shadow-sm ml-1">
+                    <button onclick="setManualScore(${index}, 1)" class="px-1.5 py-0.5 text-[10px] font-bold ${scoreVal===1?'bg-slate-200 text-slate-700':'text-slate-400 hover:bg-slate-50 hover:text-slate-600'} rounded transition-colors" title="手動で1点にする">1</button>
+                    <button onclick="setManualScore(${index}, 3)" class="px-1.5 py-0.5 text-[10px] font-bold ${scoreVal===3?'bg-slate-200 text-slate-700':'text-slate-400 hover:bg-slate-50 hover:text-slate-600'} rounded transition-colors" title="手動で3点にする">3</button>
+                    <button onclick="setManualScore(${index}, 5)" class="px-1.5 py-0.5 text-[10px] font-bold ${scoreVal===5?'bg-slate-200 text-slate-700':'text-slate-400 hover:bg-slate-50 hover:text-slate-600'} rounded transition-colors" title="手動で5点にする">5</button>
+                </div>
+            `;
+
+            badgeContainer.innerHTML = badgeHtml + manualControls;
             lucide.createIcons();
         }
 
@@ -676,7 +835,6 @@
                 try {
                     const response = await fetch(url, options);
                     if (response.ok) return response;
-                    // 4xx はリトライ不要、即終了
                     if (response.status >= 400 && response.status < 500) {
                         const errBody = await response.json().catch(() => ({}));
                         throw new Error(`CLIENT_ERROR_${response.status}: ${JSON.stringify(errBody)}`);
@@ -693,7 +851,7 @@
         async function callLLM(history, isJsonMode = false, systemInstructionText = null) {
             let errorLog = [];
 
-            // 1. Groq (Llama-3.3-70b-versatile)
+            // 1. Groq
             if (appData.groqApiKey) {
                 try {
                     let groqMessages = [];
@@ -733,7 +891,7 @@
                 }
             }
 
-            // 2. Gemini Fallback
+            // 2. Gemini
             if (appData.apiKey) {
                 try {
                     const reqBody = { contents: history, generationConfig: {} };
@@ -798,11 +956,11 @@
     【模範解答】${q.md}
     【受験者の解答】${userAnswer}
     
-    採点基準: 模範解答とのニュアンスの違いやキーワードの網羅度に基づき、1〜5の整数で点数をつけてください。
+    採点基準: 模範解答とのニュアンスの違いやキーワードの網羅度に基づき、1～5の整数で点数をつけてください。
     ※重要: 入力された文章に、模範解答の重要なキーワードがすべて含まれているか「一文字ずつ確認した後に」採点してください。
     5点: 意味や文脈が模範解答と一致しており、必要なキーワードがすべて含まれている。（語順の違いや、正しい付加情報の存在は減点せず5点とする）
-    3〜4点: 意味は概ね通じるが、重要なキーワードが一部不足している。
-    1〜2点: 明らかに不正解、または無関係な内容。
+    3～4点: 意味は概ね通じるが、重要なキーワードが一部不足している。
+    1～2点: 明らかに不正解、または無関係な内容。
     
     ・穴埋め問題の場合、解答に「ア：〇〇」のように記号が含まれていても、実質的な内容（〇〇の部分）が合っていれば「5点」としてください。
     ・記述問題の場合、一言一句同じである必要は【絶対に】ありません。重要なキーワードが含まれており、意味が合致していれば、表現が異なっても柔軟に「5点」としてください。
@@ -815,7 +973,7 @@
                 appData.chatHistories[qId].push({ role: "model", parts: [{ text: replyText }] });
                 saveData();
 
-                let cleanText = replyText.replace(/```json\\n?/gi, '').replace(/```/g, '').trim();
+                let cleanText = replyText.replace(/```json\n?/gi, '').replace(/```/g, '').trim();
                 const resultJSON = JSON.parse(cleanText);
                 displayFeedback(index, resultJSON.score, resultJSON.reason, resultJSON.missing, q.md);
 
@@ -880,14 +1038,12 @@
             try {
                 const sysPrompt = `あなたは測量士試験の専門家であり、先ほどの解答を採点した採点官です。
 ユーザーから採点結果に対する質問や反論が届いています。専門的かつ謙虚に対話し、あなたの採点に誤りや厳しすぎる点があれば素直に認めて点数を修正してください。
-※重要※ 返答は必ず自然で流暢な「日本語」で行ってください。"measurement"等の英単語の直訳が混ざる不自然な機械的口調は絶対に避けてください。
 ※重要※ これまでのJSONフォーマット（score, reason, missing）は無視し、今回の返答からは【必ず】以下の新しいJSON形式のみを出力してください。プログラムが処理するため、JSON以外の文字列（「わかりました」等）は一切含めないでください。
 
 {
-  "newScore": <1〜5の整数。採点を修正する場合は新しい点数。修正しない場合は現在の点数>,
+  "newScore": <1～5の整数。採点を修正する場合は新しい点数。修正しない場合は現在の点数>,
   "reply": "<ユーザーへの返答テキスト。Markdown可。JSONの話や『出力します』等のメタ発言は一切しないこと>"
 }`;
-                // チャットもJSONモードで呼び出す
                 const replyText = await callLLM(appData.chatHistories[qId], true, sysPrompt);
 
                 appData.chatHistories[qId].push({ role: "model", parts: [{ text: replyText }] });
@@ -898,7 +1054,7 @@
                 let botReply = replyText;
                 let newScore = null;
                 try {
-                    let cleanText = replyText.replace(/```json\\n?/gi, '').replace(/```/g, '').trim();
+                    let cleanText = replyText.replace(/```json\n?/gi, '').replace(/```/g, '').trim();
                     const parsed = JSON.parse(cleanText);
                     if (parsed.reply) botReply = parsed.reply;
                     if (parsed.newScore !== undefined) newScore = parseInt(parsed.newScore);
@@ -908,7 +1064,7 @@
 
                 const formattedReply = marked.parse ? marked.parse(botReply) : botReply.replace(/\n/g, '<br>');
                 
-                // 点数が変更された場合はバッジを更新
+                // 点数が変更された場合はバッジを更新し、完璧マークを操作する
                 let scoreChangeNotice = "";
                 if (newScore !== null && !isNaN(newScore) && newScore >= 1 && newScore <= 5) {
                     const oldScore = appData.scores[qId] || 1;
@@ -918,9 +1074,11 @@
                         saveData();
                         scoreChangeNotice = `<div class="mt-3 inline-block bg-emerald-50 border border-emerald-200 text-emerald-700 px-2 py-1.5 rounded text-[11px] font-bold shadow-sm"><i data-lucide="refresh-cw" class="w-3.5 h-3.5 inline mr-1"></i> AIが採点を ${oldScore}点 から ${newScore}点 に修正しました！</div>`;
                         
-                        // 5点になったら自動完璧
+                        // 5点になったら自動完璧、5点未満になったら完璧を解除
                         if (newScore >= 5 && !appData.mastered.includes(qId)) {
                             toggleMaster(index);
+                        } else if (newScore < 5 && appData.mastered.includes(qId)) {
+                            toggleMaster(index); // すでに含まれているので解除処理が走る
                         }
                     }
                 }
@@ -942,22 +1100,6 @@
             <div class="flex">
                 <div class="bg-rose-50 border border-rose-200 text-rose-800 px-3 py-2 rounded-xl rounded-tl-sm max-w-[85%] text-xs shadow-sm">${msg}</div>
             </div>`;
-            }
-        }
-        function renderChatHistory(index) {
-            const qId = QS[index].id;
-            const history = appData.chatHistories[qId];
-            const chatLogEl = document.getElementById(`chat-log-${index}`);
-            if (!chatLogEl || !history) return;
-
-            for (let i = 2; i < history.length; i++) {
-                const msg = history[i];
-                if (msg.role === 'user') {
-                    chatLogEl.innerHTML += `<div class="flex justify-end"><div class="bg-emerald-100 text-emerald-900 border border-emerald-200 px-3 py-2 rounded-xl rounded-tr-sm max-w-[85%] text-xs font-medium shadow-sm">${msg.parts[0].text}</div></div>`;
-                } else {
-                    const formattedReply = marked.parse ? marked.parse(msg.parts[0].text) : msg.parts[0].text.replace(/\n/g, '<br>');
-                    chatLogEl.innerHTML += `<div class="flex"><div class="bg-white border border-slate-200 text-slate-800 px-4 py-3 rounded-xl rounded-tl-sm max-w-[95%] text-xs leading-relaxed shadow-sm markdown-body"><div class="font-black text-[10px] text-emerald-600 mb-1">AIアシスタント</div>${formattedReply}</div></div>`;
-                }
             }
         }
 
@@ -1002,7 +1144,6 @@
 
             appData.gistToken = token;
 
-            // 【修正箇所】クラウドに送るデータから、APIキーとTokenを確実に削除する
             const safeUploadData = { ...appData };
             delete safeUploadData.apiKey;
             delete safeUploadData.groqApiKey;
@@ -1075,9 +1216,7 @@
             }
         }
 
-        // ついでに手動ファイル書き出しの方も安全にしました
         function exportData() {
-            // 【修正箇所】ダウンロードするファイルからもAPIキーとTokenを削除
             const safeExportData = { ...appData };
             delete safeExportData.apiKey;
             delete safeExportData.groqApiKey;
@@ -1142,29 +1281,14 @@
             setTimeout(() => { modal.classList.add('hidden'); modal.style.display = 'none'; }, 300);
         }
         function executeReset() {
-            // APIキーだけはリセットせずに残す
             const currentApiKey = appData.apiKey;
             const currentGroqKey = appData.groqApiKey;
-            appData = { scores: {}, mastered: [], answers: {}, hideMastered: document.getElementById('hide-mastered-toggle').checked, chatHistories: {}, apiKey: currentApiKey, groqApiKey: currentGroqKey };
+            appData = { scores: {}, mastered: [], answers: {}, hideMastered: document.getElementById('hide-mastered-toggle').checked, chatHistories: {}, apiKey: currentApiKey, groqApiKey: currentGroqKey, customQuestions: {} };
             localStorage.removeItem(STORAGE_KEY);
             closeResetModal(); showToast('学習データをすべてリセットしました', 'success');
             currentIndex = 0; setFilter(currentFilter);
         }
     </script>
-    <style>
-        .markdown-body p {
-            margin-bottom: 0.5em;
-        }
-
-        .markdown-body p:last-child {
-            margin-bottom: 0;
-        }
-
-        .markdown-body strong {
-            font-weight: 900;
-            color: #0f172a;
-        }
-    </style>
 </body>
 
 </html>
